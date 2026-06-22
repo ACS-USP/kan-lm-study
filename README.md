@@ -23,7 +23,7 @@ inspect and rerun the experiments behind the figures and tables.
 
 ## Checkpoints live outside git
 
-Model checkpoints (~124 `best.pt` files, ~18 GB) are **not** in this repo — git is
+Model checkpoints (128 `best.pt` files, ~21.7 GB) are **not** in this repo — git is
 the wrong tool for large binaries. They are archived separately (Zenodo DOI or
 HuggingFace Hub; see `checkpoints/README.md`) and referenced by `manifest.json`.
 The reproduction contract is: **clone this repo → download the cited checkpoints

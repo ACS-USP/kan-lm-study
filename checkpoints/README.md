@@ -1,7 +1,7 @@
 # Checkpoints (archived on the HuggingFace Hub)
 
-Model checkpoints are **not stored in git** — they are large binaries (~129 files,
-~20 GB). They are archived on the **HuggingFace Hub** as a model repo with a model
+Model checkpoints are **not stored in git** — they are large binaries (128 files,
+~21.7 GB). They are archived on the **HuggingFace Hub** as a model repo with a model
 card, and a **DOI** is minted from that repo (DataCite). The code repo references
 them via `../manifest.json`.
 

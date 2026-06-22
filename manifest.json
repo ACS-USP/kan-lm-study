@@ -71,7 +71,7 @@
     "hf_repo": "ACS-USP/kan-lm-study-checkpoints",
     "hf_url": "https://huggingface.co/ACS-USP/kan-lm-study-checkpoints",
     "doi": "TBD - mint via the HF repo Settings -> Generate DOI (DataCite) after publishing",
-    "scope": "all run final checkpoints (best.pt); 129 files, ~20 GB; includes the 61-run BabyLM matrix plus the GuppyLM screen, grid-size sweep, and Wikitext-103 scale endpoints (286M ClimbMix checkpoints tracked separately)",
+    "scope": "all run final checkpoints (best.pt); 128 files, ~21.7 GB; includes the 61-run BabyLM matrix plus the GuppyLM screen, grid-size sweep, and Wikitext-103 scale endpoints (286M ClimbMix checkpoints tracked separately). One legacy pre-rename stray (root-level best.pt, unloadable with current code) was excluded.",
     "inventory": "checkpoints/INVENTORY.tsv",
     "checksums": "checkpoints/SHA256SUMS",
     "upload_tool": "checkpoints/hf/upload_to_hf.py",

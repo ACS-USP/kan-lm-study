@@ -32,7 +32,7 @@ the companion repository.
 
 ## What's here
 
-`best.pt` for every training run (~129 files, ~20 GB), organized by regime:
+`best.pt` for every training run (128 files, ~21.7 GB), organized by regime:
 
 | Regime | Path prefix | Contents |
 |---|---|---|
