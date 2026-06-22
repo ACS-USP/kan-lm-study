@@ -26,7 +26,7 @@
       "role": "ClimbMix training harness, data pipeline, DCLM CORE evaluation (Karpathy)",
       "source": "https://github.com/karpathy/nanochat",
       "paper_pinned_commit": "dc54a1a",
-      "vendored_from": "working-tree snapshot at archival time",
+      "vendored_from": "working-tree snapshot at commit dc54a1a (matches the paper-pinned commit)",
       "license": "MIT",
       "vendor_path": "vendor/nanochat"
     },
@@ -36,7 +36,7 @@
       "source": "internal",
       "paper_pinned_commit": "8b21df237143",
       "rational_kernel_commit": "41a20b5",
-      "vendored_from": "working-tree snapshot at archival time",
+      "vendored_from": "working-tree snapshot at commit 0f047a4 (paper-pinned 8b21df2 / rational-kernel 41a20b5 are ancestors)",
       "license": "MIT",
       "vendor_path": "vendor/nanokan",
       "note": "PUBLICATION GATE: confirm this internal repo can be released publicly and contains no proprietary code before publishing."
