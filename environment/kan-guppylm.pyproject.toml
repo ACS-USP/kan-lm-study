@@ -1,0 +1,32 @@
+[project]
+name = "kanprey-lm"
+version = "0.1.0"
+description = "KanpreyLM — KAN-powered language models with empirical interpretability and the MLPEdge variant"
+requires-python = ">=3.13"
+dependencies = [
+    "datasets>=2.14.0",
+    "marimo>=0.23.6",
+    "matplotlib>=3.10.9",
+    "numpy>=2.4.6",
+    "runpod>=1.9.0",
+    "scikit-fda>=0.10.1",
+    "scikit-learn>=1.8.0",
+    "scipy>=1.17.1",
+    "tiktoken>=0.13.0",
+    "tokenizers>=0.23.1",
+    "torch>=2.12.0",
+    "tqdm>=4.67.3",
+]
+
+[project.scripts]
+kanprey-train = "kanprey.train:train"
+kanprey-chat  = "kanprey.inference:main"
+kanprey-eval  = "eval_cases:run_eval"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["kanprey*"]

@@ -1,0 +1,27 @@
+{
+  "label": "grid5",
+  "n_ffn_layers": 6,
+  "n_edge_functions": 884736,
+  "n_basis": 8,
+  "median_nls": 0.6386765700665971,
+  "pct_nonlinear_gt_0.1": 99.92766203703704,
+  "pct_inactive_le_0.01": 0.006781684027777778,
+  "fpca_top4_min_pct": 90.99904894828796,
+  "fpca_top4_mean_pct": 91.76018933455148,
+  "fpca_top4_per_layer_pct": [
+    90.999,
+    91.9977,
+    91.8216,
+    91.6121,
+    91.7538,
+    92.3768
+  ],
+  "closed_form_coverage_r2_ge_0.99_pct": 18.666666666666668,
+  "closed_form_mean_r2": 0.9562910466092622,
+  "closed_form_best_form_counts": {
+    "cubic": 55,
+    "tanh": 1
+  },
+  "best_val_loss": 0.3116731399297714,
+  "checkpoint": "checkpoints/gridsweep/kan_grid5_s42/best.pt"
+}

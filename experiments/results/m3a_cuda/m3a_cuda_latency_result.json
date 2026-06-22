@@ -1,0 +1,28 @@
+{
+  "device": "NVIDIA RTX A6000",
+  "torch": "2.3.0",
+  "batch_tokens": 4096,
+  "results": {
+    "MLP-GELU-4x": {
+      "eager_ms": 0.602,
+      "compiled_ms": null,
+      "eager_tok_per_s": 6799795,
+      "compiled_tok_per_s": null,
+      "eager_slowdown_vs_mlp": 1.0
+    },
+    "Chebyshev-d3-g8": {
+      "eager_ms": 3.321,
+      "compiled_ms": null,
+      "eager_tok_per_s": 1233507,
+      "compiled_tok_per_s": null,
+      "eager_slowdown_vs_mlp": 5.52
+    },
+    "Rational-GRKAN-g8": {
+      "eager_ms": 2.723,
+      "compiled_ms": null,
+      "eager_tok_per_s": 1504271,
+      "compiled_tok_per_s": null,
+      "eager_slowdown_vs_mlp": 4.52
+    }
+  }
+}

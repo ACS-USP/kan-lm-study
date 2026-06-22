@@ -1,0 +1,27 @@
+{
+  "label": "babylm_grid2_s42",
+  "n_ffn_layers": 6,
+  "n_edge_functions": 884736,
+  "n_basis": 5,
+  "median_nls": 0.2934340875699536,
+  "pct_nonlinear_gt_0.1": 88.30702039930556,
+  "pct_inactive_le_0.01": 0.45312952112268523,
+  "fpca_top4_min_pct": 99.92551803588867,
+  "fpca_top4_mean_pct": 99.9272366364797,
+  "fpca_top4_per_layer_pct": [
+    99.9264,
+    99.9255,
+    99.9262,
+    99.9269,
+    99.9286,
+    99.9298
+  ],
+  "closed_form_coverage_r2_ge_0.99_pct": 90.33333333333333,
+  "closed_form_mean_r2": 0.9960480046294454,
+  "closed_form_best_form_counts": {
+    "cubic": 268,
+    "sigmoid": 3
+  },
+  "best_val_loss": 4.071010541915894,
+  "checkpoint": "checkpoints/babylm/kan_grid2_s42/best.pt"
+}

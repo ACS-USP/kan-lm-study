@@ -1,0 +1,35 @@
+[
+  {
+    "in_ch": 147,
+    "label": "hub ch=147 (rank 384)",
+    "baseline_fish": 0.9958390587568283,
+    "baseline_generic": 1.0413864260911943,
+    "loss_fish": 0.9978554415702819,
+    "loss_generic": 1.044826951622963,
+    "delta_fish": 0.002016382813453621,
+    "delta_generic": 0.0034405255317686567,
+    "asymmetry": -0.0014241427183150357
+  },
+  {
+    "in_ch": 85,
+    "label": "hub ch=85 (rank 383)",
+    "baseline_fish": 0.9958390587568283,
+    "baseline_generic": 1.0413864260911943,
+    "loss_fish": 0.9945429682731628,
+    "loss_generic": 1.040771234035492,
+    "delta_fish": -0.001296090483665524,
+    "delta_generic": -0.0006151920557022628,
+    "asymmetry": -0.0006808984279632613
+  },
+  {
+    "in_ch": 192,
+    "label": "control ch=192 (rank 1)",
+    "baseline_fish": 0.9958390587568283,
+    "baseline_generic": 1.0413864260911943,
+    "loss_fish": 0.9963166558742523,
+    "loss_generic": 1.0431843376159669,
+    "delta_fish": 0.00047759711742401123,
+    "delta_generic": 0.0017979115247725996,
+    "asymmetry": -0.0013203144073485884
+  }
+]

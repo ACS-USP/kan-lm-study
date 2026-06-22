@@ -1,0 +1,26 @@
+{
+  "label": "grid2_randinit",
+  "n_ffn_layers": 6,
+  "n_edge_functions": 884736,
+  "n_basis": 5,
+  "median_nls": 0.27253046603876463,
+  "pct_nonlinear_gt_0.1": 88.7176513671875,
+  "pct_inactive_le_0.01": 0.5180076316550926,
+  "fpca_top4_min_pct": 99.92642402648926,
+  "fpca_top4_mean_pct": 99.92664357026419,
+  "fpca_top4_per_layer_pct": [
+    99.927,
+    99.9267,
+    99.9264,
+    99.9264,
+    99.9266,
+    99.9266
+  ],
+  "closed_form_coverage_r2_ge_0.99_pct": 65.0,
+  "closed_form_mean_r2": 0.9825756318826578,
+  "closed_form_best_form_counts": {
+    "cubic": 195
+  },
+  "best_val_loss": null,
+  "checkpoint": "RANDOM_INIT"
+}

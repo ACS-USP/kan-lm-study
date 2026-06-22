@@ -1,0 +1,75 @@
+{
+  "artifact": "kan-lm-study",
+  "title": "Auditing and Benchmarking KAN Feed-Forward Layers in Small Language Models",
+  "description": "Self-contained code + provenance artifact for the paper. Source is vendored under vendor/; model checkpoints are archived separately (see checkpoints/README.md) because of size.",
+  "license": "MIT",
+  "structure": {
+    "vendor/": "Frozen source-only snapshots of the three code repositories (no .git, no checkpoints, no data).",
+    "experiments/": "Scripts that produced paper figures/tables, plus their small CSV/JSON result outputs under experiments/results/.",
+    "figures/": "Figure PDFs/PNGs as they appear in the paper.",
+    "paper/": "LaTeX source and compiled PDF.",
+    "environment/": "Per-repo pyproject.toml + uv.lock for environment reconstruction.",
+    "checkpoints/": "NOT the checkpoints themselves; an inventory + checksum script + pointer to the external archive."
+  },
+  "repositories": [
+    {
+      "name": "kan-guppylm",
+      "role": "GuppyLM + BabyLM training, HF export/eval, edge audit, pruning, basis screen, grid sweep, profiler",
+      "source": "https://github.com/<org>/kan-guppylm",
+      "paper_pinned_commit": "3c8ea92",
+      "vendored_from": "working-tree snapshot at archival time (observed HEAD 57cb3ee >= 3c8ea92); see git history for any post-3c8ea92 changes",
+      "license": "MIT",
+      "vendor_path": "vendor/kan-guppylm"
+    },
+    {
+      "name": "nanochat",
+      "role": "ClimbMix training harness, data pipeline, DCLM CORE evaluation (Karpathy)",
+      "source": "https://github.com/karpathy/nanochat",
+      "paper_pinned_commit": "dc54a1a",
+      "vendored_from": "working-tree snapshot at archival time",
+      "license": "MIT",
+      "vendor_path": "vendor/nanochat"
+    },
+    {
+      "name": "nanokan",
+      "role": "GR-KAN wrapper over nanochat; rational FFN implementation; 286M ClimbMix stress tests",
+      "source": "internal",
+      "paper_pinned_commit": "8b21df237143",
+      "rational_kernel_commit": "41a20b5",
+      "vendored_from": "working-tree snapshot at archival time",
+      "license": "MIT",
+      "vendor_path": "vendor/nanokan",
+      "note": "PUBLICATION GATE: confirm this internal repo can be released publicly and contains no proprietary code before publishing."
+    }
+  ],
+  "kernel_corrections": [
+    {
+      "file": "vendor/nanokan/nanochat/.../rational.py",
+      "description": "Safe Pade denominator correction: Q(x)=1+|b0*x+b1*x^2+b2*x^3+b3*x^4| (canonical) replacing the retracted Q(x)=1+|b0||x|+|b1||x|^2+...",
+      "corrected_commit": "41a20b5",
+      "pre_fix_excluded_from_evidence": true
+    }
+  ],
+  "figures": [
+    {"id": "fig:prune-compare", "file": "figures/prune_compare.pdf", "script": "experiments/plot_prune_compare.py", "inputs": ["experiments/results/prune_curve/prune_curve.csv", "experiments/results/prune_mlp_curve/prune_mlp_curve.csv"], "reproducible_offline": true},
+    {"id": "fig:scale-trajectories", "file": "figures/scale_bpb_trajectories.pdf", "script": "experiments/plot_scale_bpb_trajectories.py", "inputs": ["ClimbMix checkpoint BPB logs (see checkpoints archive)"], "reproducible_offline": false},
+    {"id": "fig:edge-evidence", "file": "figures/edge_compare.pdf,figures/fpca_components.pdf,figures/nls_hist.pdf", "script": "vendor/kan-guppylm/kanprey/interpret.py (+ paper plot scripts)", "inputs": ["GuppyLM KAN grid-2 checkpoint"], "reproducible_offline": false},
+    {"id": "fig:babylm", "file": "figures/babylm_eval_summary.pdf", "script": "vendor/kan-guppylm/scripts (babylm eval + plot)", "inputs": ["babylm-eval per-seed reports"], "reproducible_offline": false},
+    {"id": "fig:small-quality", "file": "figures/guppylm_validation_errorbars.pdf", "inputs": ["GuppyLM training logs (val loss per seed)"], "reproducible_offline": false},
+    {"id": "fig:nls-cross-domain", "file": "figures/nls_cross_domain.pdf", "inputs": ["GuppyLM MLP + Wikitext-103 GPT-2-small MLP checkpoints"], "reproducible_offline": false}
+  ],
+  "tables": [
+    {"id": "tab:prune-mlp", "script": "experiments/prune_mlp.py", "inputs": ["GuppyLM MLP checkpoint"], "result": "experiments/results/prune_mlp_curve/prune_mlp_curve.csv"},
+    {"id": "tab:babylm-audit", "script": "experiments/audit_grid_sweep.py", "inputs": ["BabyLM KAN grid-2 checkpoints (5 seeds) + random init"], "result": "experiments/results/babylm_audit/"},
+    {"id": "tab:profiler", "script": "experiments/m3b_ffn_profile.py, experiments/m3a_cuda_latency.py", "result": "experiments/results/m3a_cuda/"},
+    {"id": "gridsweep (Sec. 4.1)", "script": "experiments/audit_grid_sweep.py", "result": "experiments/results/gridsweep_audit/, gridsweep_audit_long/"},
+    {"id": "tab:babylm (main)", "source_data": "paper/.. and babylm-eval per-seed reports", "result": "see paper Sec. 4.2"},
+    {"id": "tab:guppylm (screen)", "source_data": "GuppyLM training logs (3 seeds/row)"}
+  ],
+  "checkpoints": {
+    "host": "TBD (Zenodo DOI or HuggingFace Hub) - see checkpoints/README.md",
+    "scope": "all run final checkpoints (best.pt); ~124 files, ~18 GB; includes the 61-run BabyLM matrix plus GuppyLM, Wikitext-103 scale, and ClimbMix endpoints",
+    "inventory": "checkpoints/INVENTORY.tsv",
+    "checksums": "checkpoints/SHA256SUMS (generate with checkpoints/gen_checksums.sh at upload time)"
+  }
+}

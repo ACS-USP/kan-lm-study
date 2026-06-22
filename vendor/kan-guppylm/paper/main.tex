@@ -1,0 +1,1493 @@
+\documentclass{article}
+
+% Allow long file paths / job IDs in \url and \nolinkurl to break at hyphens.
+\PassOptionsToPackage{hyphens}{url}
+
+% NeurIPS 2025 style — swap for iclr2026 when targeting ICLR
+\usepackage[final,main]{neurips_2025}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{multirow}
+
+% ── convenience macros ────────────────────────────────────────────────────────
+\newcommand{\fij}{f_{i,j}}
+\newcommand{\mlpedge}{\textsc{MLPEdge}}
+\newcommand{\kanprey}{\textsc{KANprey}}
+\newcommand{\katprey}{\textsc{KATprey}}
+\newcommand{\guppylm}{\textsc{GuppyLM}}
+\newcommand{\kanlinear}{\textsc{KANLinear}}
+\newcommand{\grkan}{\textsc{GR-KAN}}
+\newcommand{\basiskan}{\textsc{BasisKAN}}
+
+% ──────────────────────────────────────────────────────────────────────────────
+
+\title{KAN for Language Models: Empirical Interpretability and the MLPEdge Variant}
+
+\author{%
+  Felippe Alves \\
+  Telus Digital Research Hub -- CIAAM \\
+  Institute of Mathematics and Statistics \\
+  University of São Paulo \\
+  \texttt{felippe.pereira@usp.br}
+  \And
+  Renato Vicente \\
+  Telus Digital Research Hub -- CIAAM \\
+  Institute of Mathematics and Statistics \\
+  University of São Paulo \\
+  \texttt{rvicente@usp.br}
+}
+
+\begin{document}
+
+\maketitle
+
+% ── Abstract ──────────────────────────────────────────────────────────────────
+\begin{abstract}
+Kolmogorov-Arnold Networks (KANs) replace fixed activation functions with
+learnable univariate functions on every edge, yielding~$\sim$147\,K visualizable
+1D curves per language model layer and a strong interpretability promise.
+We present the first empirical study of KAN edge interpretability at language
+model scale, measuring nonlinearity, activity, roughness, and functional
+principal components across all edges of KAN-based transformers trained on a
+60\,K-sample instruction-following corpus.
+Our study finds that \textbf{87.8\%} of edges are meaningfully nonlinear
+(NLS~$>0.1$) and only 0.4\% are dead, providing the first data-driven
+assessment of the KAN interpretability claim in a language model.
+A Mann-Whitney U test on all 884,736 edges yields $p < 10^{-300}$ for KAN\,>\,MLP,
+though this $p$-value should be read descriptively rather than inferentially: edges
+within the same layer share the same B-spline grid and basis, violating the
+independence assumption and inflating the effective sample size.
+The quantitative gap is modest (median NLS 0.281 vs.\ 0.268), and the per-layer
+distributions are consistent, suggesting the directional result is robust.
+
+Motivated by the observation that the KAN topology---additive decomposition
+over edges---may matter more than the specific B-spline basis within the
+KAN-family design space, we introduce \mlpedge{}: a drop-in replacement for the
+spline edge function with a tiny per-edge MLP ($\mathbb{R} \to \mathbb{R}$).
+We also run a follow-up function-basis screen over rational, polynomial,
+Gaussian/RBF, compact-support, and ReLU-power edge bases.
+On \guppylm{}, the strongest new basis row is a grouped Chebyshev degree-3 FFN,
+which reaches $0.2770_{\pm 0.0003}$ validation loss over three seeds,
+statistically indistinguishable from the same-protocol MLP baseline
+($0.2770_{\pm 0.0008}$) but slower in the same-device inference sweep
+(550\,ms vs.\ 309\,ms).
+The corrected canonical \grkan{} row remains close to MLP
+($0.2780_{\pm 0.0005}$), and a square-denominator rational ablation is similar
+($0.2780_{\pm 0.0009}$).
+\mlpedge{} remains the strongest \emph{edge-function} replacement among the
+B-spline and \mlpedge{} rows ($0.2854_{\pm 0.0005}$ vs.\
+$0.2883_{\pm 0.0005}$ for the standard-attention B-spline baseline), while the
+Gaussian/RBF and compact-support bases fail the local quality screen.
+Thus no tested KAN-family FFN dominates the standard MLP FFN on both quality and
+latency at this scale.
+A GPT-2 scale experiment on Wikitext-103 (124M parameters, 20\,000 steps)
+confirms the scale caveat: the MLP baseline reaches perplexity 16.58 versus
+20.96 for the parameter-matched \mlpedge{} ($h=8$), widening rather than
+reversing the GuppyLM gap.
+For \grkan{}, the analogous scale test is also negative. Training from scratch at
+identical scale (286M parameters, ClimbMix corpus, H100 80GB HBM3) under the
+canonical Safe Pad\'{e} rational definition, we sweep the group count: the best
+corrected configuration, $g=4$, reaches val\_bpb = 0.890 versus 0.8464 for the MLP
+baseline (gap $+0.044$, $\sim5.2\%$), while $g=8$ is worse
+($0.9030$, $+0.057$, $\sim6.7\%$)---a higher group count gives no benefit at this scale.
+On DCLM CORE (22 ICL tasks, centered accuracy), $g=4$ scores 0.128 and $g=8$ scores
+0.116, both below the MLP baseline of 0.154 ($\Delta = -0.026$ and $-0.038$); MLP
+leads on 18 of 22 tasks even against the stronger $g=4$ variant.
+These results are notably weaker than preliminary estimates reported in an earlier
+version of this work, which were inflated by an implementation error in the rational
+activation denominator (per-coefficient absolute value instead of the canonical
+absolute-value-after-sum).
+We document this correction transparently.
+The corrected gap is wider than the $\sim1.2\%$ preliminary estimate, so we
+treat this as a cautionary scale result: rational activations remain less
+damaging than the per-edge \mlpedge{} factorization at this scale, but the current
+evidence does not support a \grkan{} scaling advantage over MLP at any tested group
+count.
+All code and checkpoints are released at
+\url{https://github.com/HCAI-USP/kan-guppylm}.
+\end{abstract}
+
+% ── 1. Introduction ───────────────────────────────────────────────────────────
+\section{Introduction}
+\label{sec:intro}
+
+Kolmogorov-Arnold Networks~\citep{liu2024kan} replace the fixed activation
+functions of standard MLPs with learnable univariate functions on each edge,
+grounded in the Kolmogorov-Arnold representation theorem.
+The appeal for interpretability is direct: every edge $\fij(x)$ is a
+visualizable 1D function that can, in principle, be symbolically regressed
+into a closed-form expression.
+Subsequent work adapts KANs to transformers~\citep{yang2024kat} and improves
+their computational efficiency~\citep{blealtan2024efficientkan}, but the
+interpretability promise remains largely theoretical.
+
+\textbf{Two empirical gaps.}
+First, no study has measured what KAN edge functions actually learn in a
+language model: are they nonlinear, active, and structurally diverse, or do
+most edges collapse to near-linear functions?
+Second, no work has asked whether the B-spline basis is necessary for quality,
+or whether the KAN topology alone is responsible for the gains over MLP
+transformers.
+
+\textbf{This paper.}
+We address both gaps using \guppylm{}~\citep{guppylm60k} as a controlled
+testbed---a 60\,K-sample fish-personality chatbot dataset small enough for
+exhaustive edge-level analysis (${\sim}147$\,K functions per FFN layer at full
+resolution) yet rich enough to produce coherent chat behavior.
+Our contributions are:
+
+\begin{enumerate}
+  \item \textbf{Interpretability study.} We reconstruct and statistically
+    characterize all learned 1D edge functions in KAN-based transformers,
+    reporting nonlinearity scores (NLS), activity, roughness, functional PCA
+    archetypes, and a direct comparison with MLP effective edge functions via
+    Mann-Whitney~U test (Section~\ref{sec:interpretability}).
+
+  \item \textbf{\mlpedge{}.} We propose replacing B-spline edge functions with
+    tiny per-edge MLPs ($\mathbb{R}\to\mathbb{R}$), preserving the KAN
+    topology while eliminating the grid mechanism.
+    Within the B-spline/\mlpedge{} subset, \mlpedge{} improves over the
+    B-spline baselines on validation loss and heuristic prompt quality; a
+    same-protocol MLP baseline and the new Chebyshev basis screen are stronger
+    on the core training objective (Section~\ref{sec:results}).
+
+  \item \textbf{Function-basis screen.} We test rational denominator
+    variants, Chebyshev/Legendre polynomial bases, Gaussian/RBF bases,
+    compact-support bases, and ReLU-power bases.
+    A Chebyshev degree-3 grouped basis matches the MLP validation-loss mean but
+    is slower; Gaussian/RBF and hat-style localized bases do not pass the
+    GuppyLM quality screen (Section~\ref{sec:basis_screen}).
+\end{enumerate}
+
+% ── 2. Background ─────────────────────────────────────────────────────────────
+\section{Background}
+\label{sec:background}
+
+\subsection{KAN and the Kolmogorov-Arnold Theorem}
+
+The Kolmogorov-Arnold representation theorem states that every continuous
+multivariate function $f: [0,1]^n \to \mathbb{R}$ can be written as:
+\begin{equation}
+  f(\mathbf{x}) = \sum_{q=0}^{2n} \Phi_q\!\left(\sum_{p=1}^{n}
+    \phi_{q,p}(x_p)\right)
+\end{equation}
+where $\phi_{q,p}$ and $\Phi_q$ are continuous univariate functions.
+\citet{liu2024kan} use this as motivation for replacing MLP weight matrices
+with learned function arrays, noting that the exact theorem applies to
+two-layer networks but the architecture generalizes to arbitrary depth.
+
+\subsection{KANLinear (EfficientKAN)}
+\label{sec:kanlinear}
+
+\citet{blealtan2024efficientkan} implement KAN layers efficiently using
+B-spline basis functions:
+\begin{align}
+  \text{forward}(\mathbf{x}) &= \mathbf{x} \odot \text{SiLU}(\mathbf{x})\,
+    \mathbf{W}_\text{base}^\top
+    + \underbrace{\text{einsum}(\text{"bik,oik}\to\text{bo"},\,
+    B(\mathbf{x}),\,
+    \mathbf{W}_\text{spline})}_{\text{spline path}}
+\end{align}
+where $B(\mathbf{x}) \in \mathbb{R}^{B \times d_\text{in} \times n_\text{basis}}$
+is the B-spline basis evaluated via the Cox-de~Boor recursion,
+$\mathbf{W}_\text{spline} \in \mathbb{R}^{d_\text{out} \times d_\text{in} \times
+n_\text{basis}}$, and $n_\text{basis} = \text{grid\_size} + \text{spline\_order}$.
+Grid knots adapt to the activation distribution after a warm-up phase
+(\emph{grid update}).
+
+\subsection{KAT Attention}
+\label{sec:kat}
+
+\citet{yang2024kat} replace the linear Q and K projections with KANLinear
+feature maps $\varphi$, turning the dot-product similarity into a learned
+kernel:
+\begin{equation}
+  K(\mathbf{q}, \mathbf{k}) = \varphi(\mathbf{q}) \cdot \varphi(\mathbf{k})
+\end{equation}
+
+% ── 3. Models ─────────────────────────────────────────────────────────────────
+\section{Models}
+\label{sec:models}
+
+All models share the same base transformer: 6 layers, $d_\text{model}=384$,
+6 attention heads, trained on the \guppylm{} corpus with prompt-response
+masking (loss on assistant tokens only).
+
+\paragraph{MLP-4x-GELU baseline.}
+For the controlled small-scale comparison in Section~\ref{sec:results}, the
+standard transformer FFN is \texttt{Linear(384$\to$1536)} $\to$ \texttt{GELU}
+$\to$ \texttt{Linear(1536$\to$384)}.
+
+\paragraph{\kanprey{}.}
+For the controlled small-scale comparison in Section~\ref{sec:results},
+\kanprey{} replaces each FFN with a single \kanlinear{} layer
+(\texttt{384$\to$384}, grid=2, order=3), producing
+$384 \times 384 = 147{,}456$ learnable 1D edge functions per layer
+($6 \times 147{,}456 = 884{,}736$ total across all FFN layers).
+It uses standard dot-product attention (not KAT).
+
+\paragraph{\katprey{}.}
+Extends \kanprey{} by adding KANLinear feature maps to Q and K projections
+in every attention head (KAT attention~\citep{yang2024kat}).
+
+\paragraph{\mlpedge{} (proposed).}
+Uses standard dot-product attention (same as \kanprey{}, \emph{not} KAT).
+Replaces the B-spline edge function $\fij(x)$ with a tiny per-edge MLP:
+\begin{align}
+  \mathbf{H} &= \sigma\!\left(
+    \text{einsum}(\text{"bi,ih}\to\text{bih"},\, \mathbf{x},\, \mathbf{W}_1)
+    + \mathbf{b}_1\right)
+    && \in \mathbb{R}^{B \times d_\text{in} \times h} \\
+  \mathbf{out} &= \text{einsum}(\text{"bih,oih}\to\text{bo"},\,
+    \mathbf{H},\, \mathbf{W}_2) + \mathbf{b}_\text{out}
+    && \in \mathbb{R}^{B \times d_\text{out}}
+\end{align}
+where $h$ is the per-edge hidden size (default $h=5$; the B-spline baseline
+uses $n_\text{basis}=8$, so $h=8$ is parameter-matched while $h=5$ uses
+fewer parameters per edge). The einsum structure is identical to \kanlinear{}, so
+$\fij(x)$ is still a visualizable 1D scalar function.
+The \texttt{update\_grid()} call is a no-op: no grid mechanism is needed.
+
+\paragraph{\basiskan{} screen.}
+For the function-basis experiments, we keep the standard transformer block and
+replace the FFN nonlinearity with grouped scalar bases followed by the same
+linear mixing dimensions as the MLP FFN.
+The screened bases include Chebyshev and Legendre recurrences, Gaussian RBFs,
+inverse-quadratic RBFs, Wendland compact-support polynomials, triangular and
+quadratic hats, and symmetric ReLU-power functions.
+The RBF and hat variants normalize pre-basis activations with \texttt{tanh},
+use 8 centers uniformly spaced on $[-1,1]$, and set the Gaussian/RBF width to
+\texttt{width\_scale}/7.
+
+Figure~\ref{fig:architecture} illustrates the three primary FFN variants.
+
+% ── 4. Experimental Setup ─────────────────────────────────────────────────────
+\section{Experimental Setup}
+\label{sec:setup}
+
+\paragraph{Dataset.}
+\texttt{arman-bd/guppylm-60k-generic}~\citep{guppylm60k}: 60\,K
+instruction-response pairs in ChatML format (fish-personality chatbot).
+BPE tokenizer trained on the same data, vocab size 2\,393.
+
+\paragraph{Training.}
+Main comparison rows use 8\,000 steps, batch size 32, cosine LR schedule
+(peak $3\times10^{-4}$, min $3\times10^{-5}$), AdamW
+($\beta_1=0.9$, $\beta_2=0.95$, $\lambda=0.1$), and gradient clipping 1.0.
+Prompt-response masking sets targets for the user prompt portion to $-100$
+(ignored in cross-entropy loss).
+Grid update for KAN/KAT models occurs at step 500.
+The function-basis screen uses one seed-42, 2\,000-step pilot for each
+candidate; promoted candidates are rerun for 8\,000 steps over seeds
+$\{42,43,44\}$.
+
+\paragraph{Evaluation.}
+(a)~Validation cross-entropy on a held-out split;
+(b)~keyword-match accuracy on 16 fixed prompts with human-defined keyword
+sets (pass/fail per prompt);
+(c)~mean inference latency over 16 prompts $\times$ 64 new tokens.
+
+\paragraph{Why \guppylm{} as testbed.}
+At $d_\text{model}=384$ and 6 layers, each FFN \kanlinear{} layer has
+$384\!\times\!384=147{,}456$ edges---small enough to reconstruct and
+characterize every 1D function exhaustively, which is infeasible at GPT-2
+scale ($d_\text{model}=768$, $4\times$ more edges per layer, $4\times$ more
+parameters, orders-of-magnitude more compute per study).
+The single-domain corpus provides coherent semantic categories for
+token-conditioned interpretability analysis.
+
+% ── 5. Results ────────────────────────────────────────────────────────────────
+\section{Results}
+\label{sec:results}
+
+\subsection{Main comparison}
+
+\begin{table}[h]
+\centering
+\scriptsize
+\caption{%
+  Main \guppylm{} results after protocol cleanup and the function-basis screen.
+  Validation loss is mean\,$\pm$\,std over 3 seeds for every 8\,000-step row.
+  Eval (16) and latency are measured on seed-42 checkpoints under same-device
+  MPS sweeps with 16 prompts and 64 generated tokens; they are heuristic
+  behavioral probes rather than replacements for validation loss.
+  \katprey{} changes both attention and FFN, so it should not be interpreted
+  as an FFN-only ablation.
+  The canonical \grkan{} row uses the corrected Safe Pad\'{e} denominator.
+}
+\label{tab:main}
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+Model & Attn. & FFN & Val loss & Eval & Lat. & Params \\
+\midrule
+MLP-4x-GELU & Dot & MLP & $\mathbf{0.2770}_{\pm 0.0008}$ & 11/16 & \textbf{309}\,ms & 11.62M \\
+\basiskan{} Cheb $d=3,g=8$ & Dot & Cheb & $\mathbf{0.2770}_{\pm 0.0003}$ & 11/16 & 550\,ms & 11.62M \\
+\grkan{} canonical & Dot & Rational & $0.2780_{\pm 0.0005}$ & 14/16 & 459\,ms & 11.62M \\
+\grkan{} square denom. & Dot & Rational & $0.2780_{\pm 0.0009}$ & \textbf{15/16} & 382\,ms & 11.62M \\
+\kanprey{} grid=2 & Dot & Spline & $0.2883_{\pm 0.0005}$ & 8/16 & 613\,ms & 9.83M \\
+\katprey{} & KAT & Spline & $0.2867_{\pm 0.0006}$ & 13/16 & 888\,ms & 10.18M \\
+\mlpedge{} $h=5$ & Dot & Edge MLP & $0.2854_{\pm 0.0005}$ & 14/16 & 471\,ms & 8.98M \\
+\mlpedge{} $h=8$ & Dot & Edge MLP & $0.2862_{\pm 0.0010}$ & 12/16 & 536\,ms & 11.64M \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Prompt masking.}
+The most impactful single change was adding prompt-response masking
+($y_{1:\ell-1} = -100$, where $\ell$ is the assistant prefix length):
+computing loss only on assistant tokens dropped \katprey{} validation
+loss from 0.4202 to 0.2870 and eliminated role-marker leakage (the model
+generating ``\texttt{assistant}'' in responses).
+Table~\ref{tab:masking} shows the controlled comparison.
+
+\begin{table}[h]
+\centering
+\caption{Effect of prompt-response masking on \katprey{} (8\,000 steps).}
+\label{tab:masking}
+\begin{tabular}{lcc}
+\toprule
+Training objective & Val loss & Role-marker in responses \\
+\midrule
+All tokens (no masking) & 0.4202 & Yes \\
+Assistant tokens only  & \textbf{0.2870} & No \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{\mlpedge{} relative to B-spline edge-function variants.}
+Within the B-spline/\mlpedge{} subset, \mlpedge{} remains the strongest
+edge-function replacement we measured.
+At $h=5$, it improves mean validation loss over \kanprey{} grid=2
+($0.2854$ vs.\ $0.2883$) and over \katprey{} ($0.2867$), while preserving
+visualizable 1D edge functions.
+This is narrower than a full KAN-family or MLP-replacement claim:
+\basiskan{} Cheb $d=3,g=8$ and the MLP baseline are stronger on validation loss,
+and MLP remains much faster in the same-device inference sweep.
+
+Table~\ref{tab:ablation} still shows that $h=1$ achieves the lowest
+single-seed \mlpedge{} validation loss (0.2828), with loss increasing
+monotonically with $h$ on that sweep.
+We therefore interpret $h \in \{1,2\}$ as promising \mlpedge{} settings, while
+using $h=5$ and $h=8$ for the cleaner controlled comparisons above.
+
+\subsection{Function-basis screen}
+\label{sec:basis_screen}
+
+The broader basis screen tests whether the edge-wise KAN topology can recover
+MLP-level quality with bases other than B-splines or per-edge MLPs.
+Table~\ref{tab:basis_screen} summarizes the seed-42 2\,000-step screen and the
+8\,000-step confirmation for promoted candidates.
+Only the rational square-denominator ablation and the Chebyshev degree-3 basis
+were promoted.
+
+\begin{table}[h]
+\centering
+\small
+\caption{%
+  GuppyLM function-basis screen.
+  Pilot rows are seed-42, 2\,000-step validation losses.
+  Confirmation rows are 8\,000-step mean\,$\pm$\,std over seeds 42/43/44 when
+  promoted.
+}
+\label{tab:basis_screen}
+\begin{tabular}{llccc}
+\toprule
+Family & Config & 2k pilot & 8k confirmation & Decision \\
+\midrule
+Rational & \grkan{} square denom., $P/Q=5/4,g=8$ & \textbf{0.3134} & $0.2780_{\pm0.0009}$ & confirmed \\
+Polynomial & Chebyshev $d=3,g=8$ & 0.3151 & $\mathbf{0.2770}_{\pm0.0003}$ & confirmed \\
+Localized & inverse quadratic $c=8,h=1.5$ & 0.4169 & -- & reject \\
+Gaussian & $c=8,h=1.0$ & 0.4198 & -- & reject \\
+Gaussian & $c=8,h=1.5$ & 0.5123 & -- & reject \\
+Gaussian & $c=8,h=2.0$ & 1.1174 & -- & reject \\
+Hat/ReLU & ReLU-power $p=2,c=8$ & 0.3664 & -- & reject \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The main positive result is the Chebyshev row: a recurrence-friendly polynomial
+basis matches the MLP validation-loss mean within the observed 3-seed noise,
+but it is slower in our unoptimized local implementation (550\,ms vs.\ 309\,ms
+for MLP in the seed-42 prompt sweep).
+This makes Chebyshev a plausible kernel-engineering target, not an immediate
+replacement for the MLP FFN.
+The rational square-denominator variant is safe but not a clear improvement over
+canonical \grkan{}.
+
+The Gaussian/RBF branch fails for both quality and local kernel reasons.
+On shape $4096\times384$ with width scale 1.5, exact \texttt{torch.exp} was
+already faster than the tested approximations (2.86\,ms forward / 7.02\,ms
+backward) compared with \texttt{exp2} rewrite (3.32\,ms / 8.08\,ms), clamped
+exp (3.33\,ms / 8.02\,ms), and LUT interpolation (10.79\,ms / 8.38\,ms).
+The LUT was accurate (forward max error $7.7{\times}10^{-6}$; gradient max
+error $3.0{\times}10^{-9}$), but slower on MPS.
+Training quality was also poor: the best Gaussian width was $h=1.0$ at 0.4198
+after 2\,000 steps, far behind Chebyshev and rational variants.
+
+
+\subsection{Hidden-size ablation}
+
+\begin{table}[h]
+\centering
+\caption{%
+  \mlpedge{} hidden-size ablation (8\,000 steps, seed 42).
+  Inference latency measured on Apple M-series (MPS disabled; CPU for
+  reproducibility). Bold = best val loss.
+}
+\label{tab:ablation}
+\begin{tabular}{ccc}
+\toprule
+Hidden $h$ & Val loss & Latency \\
+\midrule
+\textbf{1}  & \textbf{0.2828} & 226\,ms \\
+2  & 0.2836 & 354\,ms \\
+5  & 0.2854 & 491\,ms \\
+10 & 0.2863 & 593\,ms \\
+20 & 0.2886 & 1262\,ms \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Figure~\ref{fig:ablation} (Appendix) plots the efficiency-quality tradeoff curve.
+
+\subsection{Fair KANprey baseline}
+\label{sec:kan_retrain}
+
+The original \kanprey{} result previously highlighted in Table~\ref{tab:main}
+(val loss 0.4019) was trained for only 4\,000 steps without prompt-response
+masking, making it an unfair comparison point.
+We therefore exclude it from the cleaned main table and retain it only as a
+protocol-correction example.
+
+Under the corrected 8\,000-step masked setup, the 3-seed \kanprey{} grid=2
+baseline reaches $0.2883_{\pm 0.0005}$.
+This places it behind \mlpedge{} $h=5$ by 0.0029 validation-loss points and
+behind the same-protocol MLP baseline by 0.0113.
+The corrected B-spline baseline is still useful as the main controlled
+comparison for edge-function parameterizations, but it is no longer a strong
+headline model.
+
+\subsection{Scaling to GPT-2 size}
+\label{sec:scaling}
+
+To assess whether the small-scale KAN-family improvements of \mlpedge{}
+generalize beyond the \guppylm{} testbed, we train a standard MLP transformer
+and an \mlpedge{} transformer at GPT-2 small scale
+($d_\text{model}=768$, 12 heads, 12 layers) on the Wikitext-103 benchmark
+(Table~\ref{tab:scaling}).
+
+Both models were trained for 20\,000 steps with effective batch size 128
+(gradient accumulation $4\times32$), cosine LR schedule ($3\times10^{-4}$
+to $3\times10^{-5}$, 2\,000 warmup steps), and AdamW with gradient
+checkpointing on a single RTX~A6000~48\,GB GPU.
+We report the best validation perplexity across all evaluation checkpoints.
+
+\begin{table}[h]
+\centering
+\caption{%
+  GPT-2 scale results on Wikitext-103 (20\,000 steps, effective batch~128).
+  Standard MLP FFN uses \texttt{Linear(768$\to$3072)} $\to$ \texttt{GELU}
+  $\to$ \texttt{Linear(3072$\to$768)} (4$\times$ expansion).
+  \mlpedge{} ($h=8$, matched) is parameter-matched to the MLP baseline,
+  isolating the effect of the per-edge factored structure from parameter count.
+  Throughput measured end-to-end including gradient accumulation on RTX~A6000.
+}
+\label{tab:scaling}
+\begin{tabular}{lcccc}
+\toprule
+Model & Val perplexity & Tokens/sec & Train time & Params \\
+\midrule
+MLP transformer          & \textbf{16.58} & 54{,}820 & 13.3\,h & 124M \\
+\mlpedge{} ($h=8$, matched) & 20.96          & 48{,}921 & 14.9\,h & 125M \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+At GPT-2 scale, \mlpedge{} ($h=8$) achieves a validation perplexity of 20.96
+versus 16.58 for the MLP baseline---a gap of 4.37 perplexity points (26\%)
+in favour of the standard MLP.
+This does not reverse an MLP deficit at small scale; rather, it widens a gap
+that was already present on \guppylm{}, where MLP was also the strongest
+validation-loss baseline after cleanup.
+Throughput is 11\% lower for \mlpedge{} due to the \texttt{einsum} overhead
+of the per-edge factored computation at $d_\text{model}=768$.
+
+These results suggest that the per-edge factored structure provides an
+effective inductive bias at small scale but does not transfer cleanly to
+GPT-2 size with the same hidden-per-edge budget.
+Whether higher $h$ or a different initialisation scheme would close this gap
+is left to future work.
+The \grkan{} experiment below tests the related question for a rational-basis variant.
+
+% ── 5.5 GR-KAN at GPT-2 scale ────────────────────────────────────────────────
+\subsection{\grkan{} at GPT-2 Scale}
+\label{sec:grkan_gpt2}
+
+\paragraph{Setup.}
+We train \grkan{} and a standard MLP transformer at the same scale as
+Section~\ref{sec:scaling} ($d_\text{model}=768$, 6 heads, 12 layers,
+${\sim}286$M parameters) using the nanokan training
+harness\footnote{\url{https://github.com/ACS-USP/nanokan}} on the
+ClimbMix dataset (a curated web corpus with quality filtering, comparable
+to FineWeb-Edu).
+Both models are trained for 2\,520 steps (${\sim}1.32$B tokens, effective
+batch 256 sequences $\times$ 2\,048 tokens) with the Muon
+optimizer~\citep{jordan2024muon} on a single H100 80GB HBM3 GPU.
+The \grkan{} FFN uses grouped Pad\'{e} rational activations with polynomial
+degrees $P=5$, $Q=4$. We sweep the group count $g \in \{4, 8\}$ (group channel
+widths $D/g = 192$ and $96$); a $g=16$ run diverged to NaN and is excluded.
+The MLP baseline uses the
+standard \texttt{Linear(768$\to$3072)} $\to$ \texttt{SwiGLU}
+$\to$ \texttt{Linear(3072$\to$768)} block.
+We report validation bits-per-byte (bpb) on a held-out ClimbMix split
+and DCLM CORE (22 ICL tasks, centered accuracy), neither of which is
+directly comparable to the Wikitext-103 perplexity in
+Table~\ref{tab:scaling}, but both isolate the FFN architecture difference under
+identical training conditions.
+
+\paragraph{Implementation correction.}
+After an earlier version of this work was circulated, a code review identified
+an error in the rational activation denominator.
+The original Triton kernels in \texttt{rational\_kat\_cu} computed:
+\[
+Q(x) = 1 + |b_0|\!\cdot\!|x| + |b_1|\!\cdot\!|x|^2 + |b_2|\!\cdot\!|x|^3 + |b_3|\!\cdot\!|x|^4
+\]
+applying absolute value per coefficient, rather than the canonical Safe
+Pad\'{e} rational definition:
+\[
+D(x) = b_0 x + b_1 x^2 + b_2 x^3 + b_3 x^4,\qquad
+Q(x) = 1 + |D(x)|.
+\]
+This bug was present from the original fork and affected all previously
+reported GPT-2 scale \grkan{} results.
+The forward and backward Triton kernels have been corrected; gradient
+consistency was verified via \texttt{torch.autograd.gradcheck} and a
+10-step smoke test on H100 hardware.
+The results in Tables~\ref{tab:grkan_gpt2} and~\ref{tab:grkan_core}
+reflect the canonical formula.
+
+\paragraph{Engineering: fused Triton backward.}
+The na\"{\i}ve PyTorch autograd backward for \texttt{GroupRational} dispatches
+${\sim}480$ independent CUDA kernels per training step.
+We use a single fused Triton backward kernel covering the Horner
+evaluation of $P(x)$, $D(x)$, $D'(x)$, elementwise $\partial_x$ computation, and
+block-level coefficient gradient reductions in one launch.
+This achieves ${\sim}290$K\,tok/s throughput and ${\sim}86\%$ MFU on H100~80GB~HBM3
+(${\sim}3\times$ improvement over the unfused baseline).
+The remaining throughput gap to MLP (${\sim}508$K\,tok/s) reflects the arithmetic
+intensity of rational activations relative to dense cuBLAS matmuls.
+
+\paragraph{Results.}
+Tables~\ref{tab:grkan_gpt2} and~\ref{tab:grkan_core} compare both corrected
+\grkan{} group counts against the MLP baseline on bpb and DCLM CORE.
+The best corrected configuration is $g=4$: it reaches val\_bpb = 0.890 versus
+0.8464 for MLP (gap $+0.044$, $\sim5.2\%$) and CORE = 0.128 versus 0.154
+($\Delta=-0.026$).
+Increasing the group count to $g=8$ \emph{hurts} both metrics
+(val\_bpb = 0.9030, $+0.057$/$\sim6.7\%$; CORE = 0.116, $\Delta=-0.038$), so a
+higher group count provides no benefit at this scale.
+Against the stronger $g=4$ variant, MLP leads on 18 of the 22 CORE tasks
+($g=4$ leads on \texttt{bigbench\_cs\_algorithms}, \texttt{agi\_eval\_lsat\_ar},
+and \texttt{bigbench\_dyck\_languages}, with one tie); against $g=8$, MLP leads on
+19 of 22.
+The two consistent \grkan{} wins---\texttt{bigbench\_cs\_algorithms}
+(0.432/0.434 vs.\ 0.417) and \texttt{agi\_eval\_lsat\_ar} (0.114/0.109 vs.\
+0.011)---hold for both group counts, but the COPA advantage reported in the
+preliminary version does not survive the denominator correction (COPA is now an
+MLP win, 0.140 vs.\ 0.040/0.020).
+
+\begin{table}[h]
+\centering
+\caption{%
+  \grkan{} vs.\ MLP at GPT-2 scale: validation bpb
+  (ClimbMix, $d_\text{model}=768$, 12 layers, 286M parameters, 2\,520 steps,
+  H100 80GB HBM3, Muon optimizer).
+  Canonical Safe Pad\'{e} rational formula; both \grkan{} rows are trained from
+  scratch with the corrected kernel.
+}
+\label{tab:grkan_gpt2}
+\begin{tabular}{lccc}
+\toprule
+Model & Val bpb $\downarrow$ & Gap vs.\ MLP & Tok/sec \\
+\midrule
+MLP transformer (SwiGLU) & \textbf{0.8464} & --- & ${\sim}508$K \\
+\grkan{} ($g=4$, $P/Q=5/4$) & 0.890 & $+0.044$ ($+5.2\%$) & ${\sim}290$K \\
+\grkan{} ($g=8$, $P/Q=5/4$) & 0.9030 & $+0.057$ ($+6.7\%$) & ${\sim}290$K \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{%
+  \grkan{} ($g=4$, $g=8$) vs.\ MLP at GPT-2 scale: DCLM CORE benchmark
+  (22 ICL tasks, centered accuracy unless noted; higher is better).
+  Selected per-task breakdown; full 22-task CSVs are released with the code.
+  Canonical formula, corrected kernel.
+}
+\label{tab:grkan_core}
+\begin{tabular}{lcccr}
+\toprule
+Task & \grkan{} ($g=4$) & \grkan{} ($g=8$) & MLP & Winner \\
+\midrule
+CORE (aggregate) & 0.128 & 0.116 & \textbf{0.154} & MLP \\
+\midrule
+HellaSwag (10-shot) & 0.103 & 0.094 & \textbf{0.140} & MLP \\
+ARC-Easy & 0.369 & 0.335 & \textbf{0.422} & MLP \\
+ARC-Challenge & 0.009 & $-0.009$ & \textbf{0.046} & MLP \\
+PIQA & 0.313 & 0.312 & \textbf{0.357} & MLP \\
+LAMBADA (accuracy) & 0.256 & 0.253 & \textbf{0.304} & MLP \\
+COPA & 0.040 & 0.020 & \textbf{0.140} & MLP \\
+BoolQ & $-0.081$ & $-0.167$ & \textbf{$-0.058$} & MLP \\
+\midrule
+bigbench\_cs\_algorithms & 0.432 & \textbf{0.434} & 0.417 & \grkan{} \\
+agi\_eval\_lsat\_ar & \textbf{0.114} & 0.109 & 0.011 & \grkan{} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Interpretation.}
+The corrected \grkan{} trails MLP at every tested group count---by $+0.044$ bpb
+($g=4$) to $+0.057$ bpb ($g=8$), and by $-0.026$ to $-0.038$ on CORE.
+This is a larger gap than the $\sim1.2\%$ incorrectly reported in a preliminary
+version, and the striking COPA advantage previously reported was an artifact of
+the denominator bug.
+The bpb gap is still smaller than the 26\% gap for \mlpedge{}, so rational
+activations remain a less damaging direction than per-edge MLPs at this scale, but
+the current result is negative relative to MLP.
+Notably, the group count does \emph{not} behave as a free capacity knob: $g=8$ is
+worse than $g=4$ on both bpb and CORE, and a $g=16$ run diverged to NaN, suggesting
+the group expansion needs reoptimization rather than naive scaling at this depth.
+Whether the gap closes with more training tokens, different initialization schemes
+for the rational coefficients, or a re-tuned group count is unknown.
+Each configuration here is a single run; we leave multi-seed replication, longer
+training horizons, and hyperparameter exploration to future work.
+% ── 6. Interpretability Analysis ──────────────────────────────────────────────
+\section{Interpretability Analysis}
+\label{sec:interpretability}
+
+\subsection{Edge function reconstruction}
+
+For each \kanlinear{} layer, we reconstruct all $d_\text{in}\!\times\!d_\text{out}$
+learned 1D functions:
+\begin{equation}
+  \fij(x) = W_\text{base}[j,i]\cdot\text{SiLU}(x)
+           + \sum_k W_\text{spline}[j,i,k]\cdot B_{i,k}(x)
+\end{equation}
+evaluating each on 200 points from its per-channel grid range.
+
+\paragraph{MLP effective edge functions.}
+For continuity with the earlier GuppyLM-style MLP comparison used in our
+interpretability notebook, we extract an ``effective edge function''
+$\fij^\text{MLP}$ from a 2-layer FFN:
+\begin{equation}
+  \fij^\text{MLP}(x) = \mathbf{W}_2[j,:]\cdot\text{ReLU}(\mathbf{W}_1[:,i]\cdot x + \mathbf{b}_1) + \mathbf{b}_2[j]
+\end{equation}
+with $\mathbf{W}_1\in\mathbb{R}^{768\times384}$ and $\mathbf{W}_2\in\mathbb{R}^{384\times768}$.
+This is the scalar-valued contribution of input channel~$i$ to output channel~$j$
+through the FFN, holding all other input channels at zero.
+We sample the same 200-point range $[-2, 2]$ for each pair.
+
+\subsection{Per-function metrics}
+
+We compute three scalar metrics for every edge:
+
+\textbf{Nonlinearity score (NLS):}
+$\text{NLS} = \|f - f_\text{lin}\|_2 / (\|f\|_2 + \varepsilon)$,
+where $f_\text{lin}$ is the best-fit affine function.
+NLS~$\approx 0$ indicates a near-linear edge; NLS~$\approx 1$ indicates
+strongly nonlinear behavior.
+
+\textbf{Activity:}
+$\text{Act} = \|f\|_2 / \sqrt{n}$.
+Near-zero activity flags dead edges (prunable).
+
+\textbf{Roughness:}
+$\text{Rough} = \text{mean}(|\Delta^2 f|)$, the mean absolute second finite
+difference.
+
+\paragraph{Result summary.}
+Across all 6 FFN layers and 884,736 edge functions:
+\textbf{87.8\%} of edges have NLS $>0.1$ (meaningfully nonlinear),
+and only \textbf{0.4\%} are effectively dead (activity $\leq 0.01$).
+NLS is remarkably consistent across layers (median 0.279–0.282 per layer),
+suggesting that nonlinearity is a stable property of KAN FFN layers rather
+than concentrated in specific depths.
+Figure~\ref{fig:nls} shows the NLS distributions for KAN vs.\ MLP
+effective edge functions; a Mann-Whitney~U test gives $p < 10^{-300}$ for
+KAN\,$>$\,MLP, consistent across all 6 layers individually.
+This $p$-value is reported as a descriptive summary: edges within a layer share
+the same B-spline grid and basis functions, so they are not mutually independent,
+and the effective sample size is substantially smaller than 884,736.
+The directional conclusion---KAN edges are quantitatively more nonlinear than MLP
+edges at this scale---is supported by the per-layer consistency of the effect.
+MLP edges are also predominantly nonlinear (median NLS\,=\,0.268 vs.\ 0.281 for KAN),
+suggesting that the difference is quantitative rather than qualitative.
+
+\subsection{Functional PCA}
+
+We apply truncated SVD to the $(d_\text{out}\!\cdot d_\text{in}) \times n_\text{pts}$
+curve matrix per layer (curves normalised to a common $[0,1]$ domain),
+giving functional principal components analogous to fPCA.
+Figure~\ref{fig:fpca} (Appendix) shows the top-4 components for all 6 layers.
+
+\paragraph{Result.}
+The top 4 functional principal components explain \textbf{99.9\%} of curve variance
+in every layer (PC1: 60--62\%, PC2: 30--32\%, PC3: 7\%, PC4: $<$0.3\%).
+We note that the finite B-spline basis bounds the edge-function space to a
+small number of degrees of freedom, so finding 99.9\% variance in 4 components
+is partly a consequence of the parametrization itself.
+The substantive finding is \emph{which} shapes dominate: fPC1 is a smooth
+monotone S-curve (sigmoid-like); fPC2--4 capture symmetric, asymmetric, and
+higher-frequency perturbations.
+The model converged to fewer functional archetypes than the available basis
+functions allow, indicating that training collapses the accessible function
+space to a small set of dominant motifs.
+
+\subsection{MLPEdge preserves interpretability}
+
+Figure~\ref{fig:edge_compare} plots $\fij(x)$ for the same $(i,j)$ pairs
+from \kanprey{} and \mlpedge{}.
+Both produce smooth, visualizable 1D curves; the \mlpedge{} curves are
+comparable in smoothness but have global support (SiLU-based), unlike the
+locally-supported B-spline functions.
+
+\subsection{Closed-form approximation of edge functions}
+\label{sec:symbolic}
+
+A key interpretability promise of KANs is that learned edge functions can be
+matched to closed-form expressions.
+We test closed-form \emph{approximability} by fitting a six-element library to
+the top-50 most active edges per layer: $\{$linear, quadratic, cubic, sigmoid,
+tanh, $x\cdot\text{SiLU}(x)\}$.
+For each edge, we report the best-fitting form by $R^2$ on 200 evaluation points
+within the training activation range.
+We do \emph{not} claim this constitutes symbolic regression in the full sense:
+no search over expression trees is performed and the library is intentionally
+small.
+
+\paragraph{Result.}
+\textbf{93.3\%} of the top-50 most active edges per layer admit a high-fidelity
+fit with $R^2 > 0.99$ (mean $R^2 = 0.9961$, median $= 0.9993$).
+The dominant form is cubic polynomial (91\%), with swish ($x \cdot
+\text{SiLU}(x)$, 8\%) and sigmoid (1\%) accounting for the remainder.
+Figure~\ref{fig:symbolic} (Appendix) shows representative edge functions with
+their best-fit approximations.
+These results confirm that the most active edge functions are well-approximated
+by low-degree polynomials on the training domain, consistent with the KAN
+interpretability motivation.
+Crucially, however, high $R^2$ for a cubic fit is not discriminative: Taylor's
+theorem guarantees that any smooth function on a bounded interval can be
+approximated arbitrarily well by a sufficiently high polynomial, so finding that
+cubic fits suffice does not identify the symbolic form.
+Furthermore, the six-element library is far too small to constitute a genuine
+symbolic search.
+A rigorous test would require a grammar-based search (e.g., PySR~\citep{cranmer2023interpretable})
+evaluated on held-out input ranges outside the training distribution.
+We regard the present analysis as characterizing the \emph{complexity class} of
+the learned functions (smooth, bounded, polynomial-like) rather than identifying
+their symbolic forms.
+
+\subsection{Domain-selective circuits}
+\label{sec:circuits}
+
+We register forward hooks on the layer-2 \kanlinear{} and record per-channel
+activations over 100 fish-domain prompts and 100 generic prompts sampled from
+the held-out test split.
+For each edge $(i,j)$ we compute
+$\Delta_{i,j} = f_{i,j}(\bar{x}^{\text{fish}}_i) - f_{i,j}(\bar{x}^{\text{gen}}_i)$,
+where $\bar{x}^{\cdot}_i$ is the mean pre-KAN activation of input channel~$i$
+averaged over all token positions and prompts in each domain.
+Figure~\ref{fig:circuits} shows the resulting difference heatmap for layer~2.
+
+\paragraph{Result.}
+A sparse set of edges shows strong domain selectivity: the top-20 most
+selective edges have $|\Delta| > 0.05$ while the global mean is $|\Delta| \approx 0.002$.
+Input channel~147 has the highest mean $|\Delta|$ across all its output edges
+(mean 0.016 vs.\ layer mean 0.005) and appears in 3 of the top 5 most
+domain-selective pairs, identifying it as a domain-routing hub.
+This edge-level circuit structure is a correlational observation enabled by the
+KAN's explicit 1D decomposition --- an analysis that has no direct analogue in
+MLP FFNs, where activations are entangled across input dimensions.
+
+\subsection{Structured pruning}
+
+The interpretability analysis enables principled pruning: edges with low
+activity (small $\|f\|_2$) contribute negligibly to model output and can be
+zeroed without retraining.
+We evaluate two single-criterion pruning strategies:
+(a)~\emph{activity-only}: prune edge $(i,j)$ if
+    $\text{Act}_{i,j} < \tau_\text{act} \cdot \bar{\text{Act}}_\ell$
+    where $\bar{\text{Act}}_\ell$ is the layer mean; and
+(b)~\emph{NLS-only}: prune if $\text{NLS}_{i,j} < \tau_\text{nls}$.
+
+\paragraph{Result.}
+Activity-only pruning at $\tau_\text{act}=0.3$ removes \textbf{3.6\%} of edges
+with only $\Delta\text{val\_loss} = +0.003$ zero-shot.
+After 3{,}000 steps of fine-tuning, the pruned model recovers to
+\textbf{0.297} val loss.
+Note: this is compared against the \emph{uncorrected} \kanprey{} baseline
+(0.402, 4\,000 steps, no masking); the corrected baseline is 0.2894, so the
+pruned+finetuned model (0.297) does \emph{not} recover to baseline quality.
+This correctly frames the result: 3.6\% sparsity incurs a permanent
+$+0.008$ val loss cost after fine-tuning.
+NLS-only pruning tells the complementary story: removing edges with
+NLS~$<0.05$ (just 2.8\% of edges) causes an immediate $+0.042$ degradation,
+confirming that even the least-nonlinear KAN edges carry meaningful signal.
+Figure~\ref{fig:pruning} (Appendix) plots the full quality--sparsity curves.
+
+% ── 7. Discussion ─────────────────────────────────────────────────────────────
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Why MLPEdge works}
+
+The KAN topology---additive decomposition of each output feature over all
+input channels via independent 1D functions---remains the key architectural
+inductive bias inside the KAN-family design space.
+At small scale (384 hidden units, 60\,K training samples), a tiny MLP per
+edge improves over the tested B-spline KAN variants even without a grid update
+mechanism, suggesting that the B-spline basis itself is not the only route to
+useful edge-wise functions.
+
+\subsection{Honest tradeoffs of MLPEdge}
+
+\textbf{Advantages.}
+No grid mechanism (no extra hyperparameters, no update step), and within the
+tested KAN-family variants, better validation loss and stronger heuristic
+prompt behavior than the B-spline baselines in Table~\ref{tab:main}.
+
+\textbf{Disadvantages.}
+B-spline knots provide locally-supported basis functions, giving the spline
+path an inductive bias for smooth, locally-adapting functions;
+\mlpedge{} uses SiLU, which has global support.
+Symbolic regression of learned edge functions is harder: B-splines can be
+approximated by simple polynomials per segment, while SiLU-based MLPs have
+no closed-form simplification.
+The connection to the Kolmogorov-Arnold theorem is equally valid: a SiLU-based
+MLP mapping $\mathbb{R}\to\mathbb{R}$ is a continuous univariate function and
+satisfies the theorem's requirements.
+The practical distinction is that B-spline edges have a known, symbolic basis
+suited for regression, while SiLU-MLP edges have no closed-form simplification.
+
+\textbf{Scale caveat.}
+The small-scale improvement of \mlpedge{} over the tested B-spline KAN
+variants does not close the gap to the standard MLP baseline, and at GPT-2
+size (Section~\ref{sec:scaling}) the gap widens substantially: the MLP
+baseline outperforms the parameter-matched \mlpedge{} by 4.4 perplexity
+points while also running 11\% faster.
+We therefore do not claim that \mlpedge{} generalises beyond the
+\guppylm{} testbed.
+
+\subsection{GR-KAN at GPT-2 Scale}
+
+The corrected \grkan{} scale comparison in Section~\ref{sec:grkan_gpt2} is
+cautionary.
+Under the canonical Safe Pad\'{e} formula and a group-count sweep, the best
+\grkan{} configuration ($g=4$) reaches val\_bpb = 0.890 versus 0.8464 for the
+MLP baseline at 286M parameters on ClimbMix---a 5.2\% gap---while $g=8$ is worse
+(0.9030, 6.7\%).
+On DCLM CORE (22 ICL tasks), $g=4$ scores 0.128 and $g=8$ scores 0.116 versus
+0.154 for MLP ($\Delta=-0.026$ and $-0.038$), with MLP leading on 18 of 22 tasks
+against $g=4$ and no COPA advantage at either group count.
+The bpb gap is smaller than the 26\% \mlpedge{} gap at GPT-2-small scale, so
+rational activations remain a plausible but unproven route for future work.
+These results do not establish that \grkan{} is competitive with MLP, nor that
+group-shared Pad\'{e} activations scale cleanly.
+
+Because all smaller pre-fix \grkan{} runs used the wrong denominator formula,
+we do not draw conclusions from their reported validation loss, modular-staging
+behavior, or external comparisons.
+Those rows require fresh denominator-corrected reruns before they can re-enter
+the paper.
+
+\subsection{Relation to PowerMLP}
+
+\citet{tang2025powermlp} show algebraic equivalence between B-splines and
+ReLU-power compositions, but do not train or evaluate per-edge MLP functions
+in a language model.
+\mlpedge{} is independently motivated and evaluated here;
+the equivalence result provides a theoretical connection but does not
+anticipate our empirical findings.
+
+% ── 8. Limitations ────────────────────────────────────────────────────────────
+\section{Limitations}
+\label{sec:limitations}
+
+\guppylm{} is a controlled testbed, not a production-scale model.
+Our GPT-2 scale experiment (Section~\ref{sec:scaling}) shows that
+\mlpedge{}'s advantage does \emph{not} transfer to $d_\text{model}=768$:
+the per-edge factored structure falls 26\% behind the MLP baseline in
+perplexity at matched parameter count.
+Whether a larger per-edge hidden size or different initialisation would
+recover competitive performance for \mlpedge{} at scale remains open.
+Section~\ref{sec:grkan_gpt2} shows that canonical \grkan{} with rational
+activations also trails MLP at 286M parameters at every tested group count:
+$+0.044$ ($g=4$) to $+0.057$ ($g=8$) bpb, $-0.026$ to $-0.038$ DCLM CORE,
+and lower throughput.
+Although this bpb gap is smaller than the \mlpedge{} gap, it is still a negative
+result relative to the MLP baseline and cannot support a \grkan{} architecture
+claim.
+The current corrected comparison is a single run per group count ($g \in \{4,8\}$); additional seeds, other
+initialization schemes, and longer training horizons remain open.
+The keyword-match evaluation metric on \guppylm{} is coarse; the GPT-2
+scale experiment uses bpb (ClimbMix) and DCLM CORE (ICL benchmark).
+Interpretability results apply to B-spline KANLinear; \mlpedge{} functions
+are visualizable but harder to analyze symbolically.
+The domain-selective circuit analysis (Section~\ref{sec:circuits}) is
+correlational.
+We tested causal relevance by scaling the spline output of the top-5 most
+domain-selective edges by $\alpha \in \{0, 0.5, 2, 5\}$ (zeroing at
+$\alpha=0$, amplifying at $\alpha=5$) and measuring the resulting change in
+validation loss on 100 fish-domain vs.\ 100 generic prompts.
+The maximum observed asymmetry (|$\Delta\text{loss}_\text{fish}
+- \Delta\text{loss}_\text{generic}|$) across all $\alpha$ values is
+$\mathbf{<0.004}$ --- comparable to noise and far below what is needed to
+claim selective behavioral impact.
+This null result likely reflects redundancy across the 384 input channels and
+6 transformer layers; single-edge interventions are insufficient.
+Establishing causal circuit roles would require larger multi-edge ablations or
+activation patching across the full residual stream.
+Training logs for early experiments were not saved step-by-step;
+Figure~\ref{fig:loss_curves} uses logged val\_loss from re-runs with the
+corrected training loop.
+
+% ── 9. Related Work ───────────────────────────────────────────────────────────
+\section{Related Work}
+\label{sec:related}
+
+\paragraph{KAN and variants.}
+\citet{liu2024kan} introduce KANs and demonstrate symbolic regression on
+scientific functions. \citet{yang2024kat} extend KANs to attention layers.
+\citet{liu2024kan2} (KAN 2.0) add MultKAN and grid extension techniques.
+\citet{bodner2024convolutional} and others apply KANs to vision tasks.
+
+\paragraph{Efficient KAN.}
+\citet{blealtan2024efficientkan} implement \kanlinear{} efficiently using
+pre-computed B-spline grids; we build on this implementation.
+
+\paragraph{Additive models and interpretability.}
+Neural additive models~\citep{agarwal2021neural} represent each feature by a
+learned shape function, sharing the ``one function per input dimension''
+interpretability goal.
+KANs extend this to the edge level, yielding a richer family of decompositions.
+
+\paragraph{PowerMLP.}
+\citet{tang2025powermlp} prove algebraic equivalence between KAN spline
+edges and ReLU-power compositions, providing theoretical motivation
+for replacing splines with polynomial networks.
+\mlpedge{} pursues a similar substitution but uses learned per-edge MLPs and
+evaluates the approach in a language model setting.
+
+% ── 10. Conclusion ────────────────────────────────────────────────────────────
+\section{Conclusion}
+\label{sec:conclusion}
+
+We presented the first empirical interpretability study of KAN edge functions
+in a language model, finding that 87.8\% of 884,736 edges are meaningfully
+nonlinear (NLS\,$>0.1$) and only 0.4\% are dead.
+At \guppylm{} scale, the function-basis screen finds that a grouped Chebyshev
+degree-3 FFN reaches $0.2770_{\pm 0.0003}$ validation loss over three seeds,
+matching the same-protocol MLP mean ($0.2770_{\pm 0.0008}$) but running slower
+in the seed-42 inference sweep (550\,ms vs.\ 309\,ms).
+Corrected canonical \grkan{} remains close ($0.2780_{\pm 0.0005}$), and a
+square-denominator rational ablation is similar ($0.2780_{\pm 0.0009}$), but no
+tested KAN-family FFN dominates MLP on both quality and latency.
+\mlpedge{} remains the strongest visualizable edge-function replacement among
+the B-spline and \mlpedge{} rows: it reaches $0.2854_{\pm 0.0005}$ validation
+loss at $h=5$, compared with $0.2883_{\pm 0.0005}$ for the standard-attention
+B-spline baseline and $0.2867_{\pm 0.0006}$ for \katprey{}.
+At GPT-2 scale (124M parameters, Wikitext-103), the parameter-matched
+\mlpedge{} ($h=8$) trails the MLP baseline by a substantial margin
+(perplexity 20.96 vs.\ 16.58), indicating that the per-edge factored
+structure does not scale straightforwardly beyond the small-model regime
+explored here.
+
+All pre-fix \grkan{} runs outside the corrected \guppylm{} rerun are excluded
+from the evidence base because they used the wrong rational denominator formula.
+The removed modular-staging rows still require fresh denominator-corrected
+reruns; the old d12 group-count rows, however, have been replaced by the
+corrected from-scratch runs reported next.
+We additionally scale \grkan{} to 286M parameters on ClimbMix
+(Section~\ref{sec:grkan_gpt2}), finding that the best corrected configuration
+($g=4$) reaches val\_bpb = 0.890 versus 0.8464 for the MLP baseline---a 5.2\%
+gap, widening to 6.7\% at $g=8$---after
+engineering a fused Triton backward kernel for the group-rational activation
+(${\sim}3\times$ faster than the unfused rational baseline; ${\sim}290$K
+tok/s versus ${\sim}508$K tok/s for MLP).
+On DCLM CORE (22 ICL tasks), $g=4$ scores 0.128 and $g=8$ scores 0.116 versus
+0.154 for MLP ($\Delta=-0.026$ and $-0.038$), with MLP leading on 18 of 22 tasks
+and no COPA advantage
+under the corrected denominator.
+Thus, the corrected \grkan{} result is a useful negative/cautionary scale
+result: rational activations appear less damaging than the per-edge \mlpedge{}
+factorization at this scale, but they do not yet match the MLP baseline.
+
+The \guppylm{} testbed and all model code are publicly available:
+\url{https://github.com/HCAI-USP/kan-guppylm}.
+
+% ── Acknowledgments ───────────────────────────────────────────────────────────
+\begin{ack}
+This work was carried out at the Human-Centered Artificial Intelligence group
+(HCAI) of the University of São Paulo.
+We thank the GuppyLM dataset contributors and the EfficientKAN open-source
+implementation.
+Small-scale experiments were run on a personal Apple Silicon workstation.
+The Wikitext-103 GPT-2 scale experiments used an NVIDIA RTX~A6000 GPU via RunPod community cloud; the ClimbMix \grkan{} scale comparison used an H100 80GB HBM3 GPU.
+No external compute grants were used.
+\end{ack}
+
+% ── References ────────────────────────────────────────────────────────────────
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+% ── Appendix ──────────────────────────────────────────────────────────────────
+\appendix
+
+\section{Architecture Diagram}
+\label{app:architecture}
+
+\begin{figure}[h]
+\centering
+% Architecture schematic generated from current model definitions.
+\includegraphics[width=\linewidth]{figures/architecture.pdf}
+\caption{%
+  \textbf{Three FFN variants.}
+  \emph{Left}: Standard MLP FFN (two linear layers + ReLU).
+  \emph{Center}: KANLinear --- each edge $\fij$ is a B-spline function with
+  learnable coefficients and adaptive knots.
+  \emph{Right}: \mlpedge{} --- each edge $\fij$ is a tiny MLP
+  ($\mathbb{R}\to\mathbb{R}$), realized via the same einsum structure.
+}
+\label{fig:architecture}
+\end{figure}
+
+\section{Training Loss Curves}
+\label{app:loss}
+
+\begin{figure}[h]
+\centering
+% Loss curves generated from current training logs.
+\includegraphics[width=0.7\linewidth]{figures/loss_curves.pdf}
+\caption{%
+  Validation loss vs.\ training step for all four models.
+  The prompt-masking fix (dashed vertical line at step 0 of KAT v2 and
+  \mlpedge{} runs) accounts for the discontinuous improvement relative to
+  the initial \kanprey{} run.
+}
+\label{fig:loss_curves}
+\end{figure}
+
+\section{Spline vs.\ MLPEdge Edge Visualization}
+\label{app:edge_viz}
+
+\begin{figure}[h]
+\centering
+% Edge comparison figure generated from current interpretability artifacts.
+\includegraphics[width=0.8\linewidth]{figures/edge_compare.pdf}
+\caption{%
+  Learned 1D edge functions $\fij(x)$ for the same $(i, j)$ pairs from
+  layer~0 of \kanprey{} (B-spline, \emph{left}) and \mlpedge{}
+  (\emph{right}).
+  Both produce smooth, visualizable curves; \mlpedge{} functions have global
+  support while B-spline functions have locally-supported knots (vertical
+  tick marks, bottom).
+}
+\label{fig:edge_compare}
+\end{figure}
+
+\section{MLPEdge Hidden-Size Ablation}
+\label{app:ablation}
+
+\begin{figure}[h]
+\centering
+% Ablation figure generated from current MLPEdge sweep artifacts.
+\includegraphics[width=0.65\linewidth]{figures/ablation.pdf}
+\caption{%
+  \mlpedge{} hidden-size ablation.
+  Left axis: validation loss; right axis: inference latency.
+  $h=1$ achieves the best validation loss (0.2828); $h=2$ is the practical
+  sweet spot (0.2836, 354\,ms).
+  We use $h=5$ as our main comparison point for parameter-count matching
+  with $n_\text{basis}=5$ B-spline models.
+}
+\label{fig:ablation}
+\end{figure}
+
+\section{NLS Distribution and MLP Comparison}
+\label{app:nls}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.7\linewidth]{figures/nls_hist.pdf}
+\caption{%
+  Overlaid histograms of nonlinearity score (NLS) for KAN edge functions
+  (884,736 edges across 6 FFN layers, blue) and MLP effective edge functions
+  (orange). Log-scale y-axis.
+  Mann-Whitney~U test: $p < 10^{-300}$ (KAN\,$>$\,MLP).
+  Both distributions peak well above 0.1, with KAN edges
+  slightly more nonlinear (median 0.281 vs.\ 0.268).
+}
+\label{fig:nls}
+\end{figure}
+
+\section{Functional PCA Components}
+\label{app:fpca}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\linewidth]{figures/fpca_all_layers.pdf}
+\caption{%
+  Top-4 functional principal components for all 6 KAN FFN layers of \kanprey{}.
+  PC1--4 together explain \textbf{99.9\%} of curve variance in every layer
+  (PC1 alone: 60--62\%).
+  Note: the finite B-spline basis bounds the edge-function space to a small
+  number of degrees of freedom; the 4-PC result reflects that training
+  further collapses this space to dominant archetypes (see Section~\ref{sec:interpretability}).
+}
+\label{fig:fpca}
+\end{figure}
+
+\section{Domain-Selective Circuit Heatmap}
+\label{app:circuits}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\linewidth]{figures/circuits_heatmap.pdf}
+\caption{%
+  Per-edge output difference $\Delta_{i,j} = f_{i,j}(\bar{x}^\text{fish}_i)
+  - f_{i,j}(\bar{x}^\text{gen}_i)$ for layer~2 of \kanprey{}.
+  \emph{Left}: mean edge outputs for fish-domain prompts.
+  \emph{Centre}: mean edge outputs for generic prompts.
+  \emph{Right}: difference (fish\,$-$\,generic). Red = fish-selective,
+  blue = generic-selective.
+  A sparse set of edges ($|\Delta| > 0.05$) shows strong domain selectivity;
+  input channel 147 appears in 3 of the 5 most domain-selective pairs.
+}
+\label{fig:circuits}
+\end{figure}
+
+\section{Structured Pruning Quality--Sparsity Curves}
+\label{app:pruning}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\linewidth]{figures/pruning_sparsity.pdf}
+\caption{%
+  Zero-shot val loss vs.\ fraction of edges pruned for activity-only
+  (\emph{left}) and NLS-only (\emph{right}) pruning strategies.
+  Activity-only pruning removes 3.6\% of edges at $+0.003$ val loss;
+  NLS-only pruning causes steep degradation even at low sparsity,
+  confirming that nonlinear edges are functionally load-bearing.
+  Dashed line: baseline; dotted line: baseline $+0.01$.
+}
+\label{fig:pruning}
+\end{figure}
+
+
+\section{Closed-Form Approximation of Edge Functions}
+\label{app:symbolic}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\linewidth]{figures/symbolic_regression.pdf}
+\caption{%
+  Representative KAN edge functions (blue) from layer~0 of \kanprey{} with
+  their best-fit closed-form approximations (orange dashed).
+  Candidate forms: linear, quadratic, cubic, sigmoid, tanh, $x\cdot\text{SiLU}(x)$.
+  $R^2$ is reported for each fit within the training activation range.
+  93.3\% of the top-50 most active edges per layer achieve $R^2 > 0.99$
+  (mean $R^2 = 0.9961$); the dominant form is cubic polynomial (91\%).
+  Note: high $R^2$ for a cubic on a bounded interval reflects the smoothness
+  of the learned functions, not a definitive symbolic identification
+  (see Section~\ref{sec:symbolic}).
+}
+\label{fig:symbolic}
+\end{figure}
+
+
+\section{Reproducibility Checklist}
+\label{app:reprod}
+
+This section documents the exact software, hardware, datasets, commands, and seeds needed to reproduce the main experiments.
+
+\subsection{Code and Revisions}
+
+\begin{itemize}
+  \item \textbf{kan-guppylm} (GuppyLM runs, MLPEdge GPT-2 Wikitext-103):
+    \url{https://github.com/HCAI-USP/kan-guppylm},
+    commit \texttt{3c8ea92} (2026-06-01).
+  \item \textbf{nanokan} (GR-KAN ClimbMix d12 runs):
+    \url{https://github.com/ACS-USP/nanokan},
+    commits \texttt{8b21df2} ($g=4$ run) and \texttt{0e0bea5} ($g=8$ run); the
+    canonical Safe Pad\'{e} denominator is provided by the pinned
+    \texttt{rational\_kat\_cu} kernel below.
+  \item \textbf{nanochat} (training harness dependency):
+    \url{https://github.com/karpathy/nanochat},
+    commit \texttt{dc54a1a} (2026-05-22).
+  \item \textbf{rational\_kat\_cu} (rational activation kernels):
+    \url{https://github.com/Adamdad/rational\_kat\_cu},
+    commit \texttt{41a20b5}, with the corrected Safe Pad\'{e} denominator and fused Triton backward kernels.
+\end{itemize}
+
+\subsection{Rational Denominator Correction}
+
+All pre-correction GR-KAN d12 checkpoints are excluded from the publication evidence
+except as historical invalidation context.
+The bug and fix are as follows:
+\begin{itemize}
+  \item \textbf{Canonical (correct):} $Q(x) = 1 + |b_0 x + b_1 x^2 + b_2 x^3 + b_3 x^4|$.
+  \item \textbf{Retracted (bugged):} $Q(x) = 1 + |b_0||x| + |b_1||x|^2 + |b_2||x|^3 + |b_3||x|^4$.
+\end{itemize}
+Gradient consistency of the corrected kernel was verified via \texttt{torch.autograd.gradcheck}
+on H100 hardware (max errors: $\mathrm{d}x = 3.81\times10^{-6}$, $\mathrm{d}a = 8.58\times10^{-6}$,
+$\mathrm{d}b = 9.54\times10^{-6}$, float32).
+
+\subsection{Environment Versions}
+
+\begin{table}[h]
+\centering
+\caption{Software environment for each experiment family.}
+\label{tab:env}
+\begin{tabular}{lccc}
+\toprule
+  & GuppyLM Track A & MLPEdge GPT-2 & GR-KAN ClimbMix d12 \\
+\midrule
+OS & Darwin 25.4.0 arm64 & Ubuntu 22.04 & Ubuntu 22.04 \\
+Python & 3.13.5 & 3.10.12 & 3.10.12 \\
+PyTorch & 2.12.0 (MPS) & 2.4.1 (CUDA 12.4) & 2.5.1 (CUDA 12.4) \\
+Triton & --- & --- & 3.1.0 \\
+Flash Attn & --- & --- & FA3 (Hopper SM90) \\
+Muon & --- & --- & Newton-Schulz-5 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Hardware}
+
+\begin{itemize}
+  \item \textbf{GuppyLM Track A}: Apple M4 Pro, 14 logical cores, 25.77~GB unified memory, MPS backend.
+    Training wall-clock: $\sim$10\,min per 8,000-step run.
+  \item \textbf{MLPEdge GPT-2 Wikitext-103}: single NVIDIA RTX~A6000 48~GB (RunPod community cloud).
+    Training wall-clock: 13.3\,h (MLP), 14.9\,h (\mlpedge{}).
+  \item \textbf{GR-KAN ClimbMix d12}: single NVIDIA H100 80~GB HBM3 (RunPod community cloud).
+    Training wall-clock: $\sim$2.0\,h per run (2,520 steps); step time
+    $\sim$1.76\,s, throughput $\sim$290K\,tok/s, $\sim$88\% BF16 MFU
+    (steady state, from the run logs).
+    Eval hardware: NVIDIA RTX PRO 4500 Blackwell 32~GB (separate pod).
+\end{itemize}
+
+\subsection{Dataset Provenance and Tokenizers}
+
+\begin{itemize}
+  \item \textbf{GuppyLM}: \texttt{arman-bd/guppylm-60k-generic} (HuggingFace;
+    MIT license, DOI \texttt{10.57967/hf/8339}).
+    Tokenizer: \texttt{tokenizer.json} (GPT-2 BPE, vocab 2,393).
+    Max sequence length: 128 tokens.
+    Objective: assistant-token-only loss; prompt token targets set to $-100$.
+  \item \textbf{MLPEdge GPT-2 Wikitext-103}: \texttt{Salesforce/wikitext},
+    configuration \texttt{wikitext-103-v1} (Merity et al., 2017;
+    CC BY-SA 3.0 / GFDL).
+    GPT-2 BPE tokenizer (vocab 50,257).
+  \item \textbf{GR-KAN ClimbMix d12}: nanochat's ClimbMix corpus, traced by
+    nanochat to NVIDIA Nemotron-ClimbMix (400B tokens; CC BY-NC 4.0;
+    research and development use).
+    RustBPE tokenizer trained on 30 ClimbMix shards,
+    \texttt{--max-chars=2B --vocab-size=32768}.
+    Tokenizer artifacts: \texttt{tokenizer.pkl} + \texttt{token\_bytes.pt}.
+    \textbf{Evaluation guard}: the eval pod uses the exact same tokenizer artifact
+    from training (30-shard build), not a reduced-shard rebuild.
+\end{itemize}
+
+\subsection{GuppyLM Track A Commands and Seeds}
+
+All cleanup runs: 8,000 steps, batch size 32, \texttt{kanprey.train} defaults
+(AdamW, cosine LR, 200 warmup steps). Seed list: $\{42, 43, 44\}$.
+
+\begin{verbatim}
+# Same-protocol MLP baseline
+uv run python -m kanprey.train --model mlp --steps 8000 \
+  --batch-size 32 --checkpoint-dir checkpoints/mlp_s42 --seed 42
+# ... repeated for seeds 43, 44
+
+# B-spline KAN grid=2
+uv run python -m kanprey.train --model kan --grid-size 2 --steps 8000 \
+  --batch-size 32 --checkpoint-dir checkpoints/kan_grid2_s42 --seed 42
+# ... repeated for seeds 43, 44
+
+# Parameter-matched MLPEdge h=8
+uv run python -m kanprey.train --model mlpedge --mlp-edge-hidden 8 \
+  --steps 8000 --batch-size 32 \
+  --checkpoint-dir checkpoints/mlpedge_h8_s42 --seed 42
+# ... repeated for seeds 43, 44
+
+# Corrected canonical GR-KAN
+uv run python -m kanprey.train --model grkan --steps 8000 \
+  --batch-size 32 --checkpoint-dir checkpoints/grkan_corrected_s42 \
+  --seed 42
+# ... repeated for seeds 43, 44
+\end{verbatim}
+
+Existing KAT and MLPEdge $h=5$ rows use the same seeds from \texttt{checkpoints/kat\_s*} and
+\texttt{checkpoints/mlpedge\_s*}.
+
+\subsection{GuppyLM Function-Basis Screen}
+
+The function-basis screen first ran the Gaussian/RBF microbenchmark gate:
+\begin{verbatim}
+uv run python scripts/benchmark_basis_kernels.py \
+  --shape 4096x384 --device auto --dtype float32 \
+  --centers 8 --width-scale 1.5 --repeats 20 \
+  --output results/basis_gaussian_microbench_4096x384_h15.json
+\end{verbatim}
+
+The Stage-1 pilot matrix used 2\,000 steps, batch size 32, seed 42, and
+\texttt{checkpoints/basis\_pilots/<name>} output directories.
+The promoted Stage-2 confirmation rows used:
+\begin{verbatim}
+# Square-denominator GR-KAN confirmation
+uv run python -m kanprey.train --model grkan --steps 8000 \
+  --batch-size 32 --seed 42 --grkan-denominator square \
+  --grkan-m 5 --grkan-n 4 --grkan-groups 8 \
+  --checkpoint-dir checkpoints/basis_confirm/grkan_square_p5q4_g8_s42
+# ... repeated for seeds 43, 44
+
+# Chebyshev degree-3 grouped basis confirmation
+uv run python -m kanprey.train --model basis --steps 8000 \
+  --batch-size 32 --seed 42 --basis-family chebyshev \
+  --basis-degree 3 --basis-groups 8 --basis-input-norm tanh \
+  --checkpoint-dir checkpoints/basis_confirm/cheb_d3_g8_s42
+# ... repeated for seeds 43, 44
+\end{verbatim}
+
+Primary artifacts are \texttt{results/basis\_stage1\_summary.json},
+\texttt{results/basis\_stage2\_summary.json},
+\texttt{results/basis\_stage2\_run\_manifest.json},
+\texttt{results/basis\_stage2\_eval.json}, and
+\texttt{results/basis\_stage2\_diagnostics.json}.
+
+\subsection{GuppyLM Unified Evaluation}
+
+\begin{verbatim}
+uv run python eval_cases.py --json --max-tokens 64 \
+  --run MLP=checkpoints/mlp_s42/best.pt \
+  --run KAN=checkpoints/kan_grid2_s42/best.pt \
+  --run KAT=checkpoints/kat_s42/best.pt \
+  --run MLPEdgeH5=checkpoints/mlpedge_s42/best.pt \
+  --run MLPEdgeH8=checkpoints/mlpedge_h8_s42/best.pt \
+  --run GRKAN=checkpoints/grkan_corrected_s42/best.pt \
+  --run GRKANSquare=checkpoints/basis_confirm/grkan_square_p5q4_g8_s42/best.pt \
+  --run ChebD3=checkpoints/basis_confirm/cheb_d3_g8_s42/best.pt
+\end{verbatim}
+
+Settings: device \texttt{mps}, tokenizer \texttt{tokenizer.json},
+temperature 0.7, top-$k$ 50, max new tokens 64, 16 prompts.
+The 16-prompt score is a pass/fail heuristic on manual criteria;
+it is not a benchmark and should be interpreted with binomial uncertainty.
+Latency: mean and median across 16 prompts $\times$ 64 generated tokens.
+
+\subsection{MLPEdge GPT-2 Wikitext-103}
+
+\begin{itemize}
+  \item Model config: $d_\text{model}=768$, 12 heads, 12 layers, context 1,024.
+  \item MLP FFN: $\text{Linear}(768{\to}3072) \to \text{GELU} \to \text{Linear}(3072{\to}768)$ (4$\times$ expansion).
+  \item \mlpedge{} $h=8$: per-edge MLP hidden size 8, parameter-matched to MLP.
+  \item Training: 20,000 steps, effective batch 128 (gradient accumulation $4 \times 32$),
+    cosine LR $3\times10^{-4} \to 3\times10^{-5}$, 2,000 warmup, AdamW,
+    gradient checkpointing enabled.
+  \item Reported: best validation perplexity across all eval checkpoints.
+\end{itemize}
+
+\subsection{GR-KAN ClimbMix d12}
+
+\begin{itemize}
+  \item Harness: \texttt{nanokan} wrapping nanochat with \texttt{--ffn-type} switch.
+  \item Model tags: \texttt{d12-mlp}, \texttt{d12-grkan-g4}, \texttt{d12-grkan-g8}.
+  \item Config: $d_\text{model}=768$, 6 heads, 12 layers, sequence length 2,048,
+    $\sim$286M parameters.
+  \item GR-KAN: group counts $g \in \{4, 8\}$ (best: $g=4$; $g=16$ diverged), $P=5$, $Q=4$, canonical Safe Pad\'{e} denominator.
+    Rational init: \texttt{identity} (rat1), \texttt{swish} (rat2).
+  \item MLP baseline: $\text{Linear}(768{\to}3072) \to \text{SwiGLU} \to \text{Linear}(3072{\to}768)$.
+  \item Training: 2,520 steps, effective batch 256 seq $\times$ 2,048 tok = 524,288 tok/step,
+    $\sim$1.32B total tokens. Optimizer: Muon (Newton-Schulz-5)
+    for 2D weights, AdamW for scalars and rational coefficients.
+    BF16 mixed-precision, Flash Attention 3.
+  \item Eval: BPB and DCLM CORE (22 ICL tasks, centered accuracy).
+    Full per-task CSV available at \url{https://github.com/ACS-USP/nanokan}.
+  \item RunPod commands:
+\begin{verbatim}
+python3 scripts/runpod_launch.py test
+python3 scripts/runpod_launch.py train --model grkan \
+  --volume-id <volume_id> --steps 2520
+python3 scripts/runpod_launch.py eval \
+  --model-tags d12-grkan-g4 d12-grkan-g8 d12-mlp --secure
+\end{verbatim}
+\end{itemize}
+
+\subsection{Checkpoint Lineage}
+
+\begin{table}[h]
+\centering
+\small
+\caption{Checkpoint paths for every result row.}
+\label{tab:checkpoints}
+\begin{tabular}{@{}lp{0.58\linewidth}@{}}
+\toprule
+Result row & Checkpoints \\
+\midrule
+GuppyLM MLP & \texttt{mlp\_s42}, \texttt{mlp\_s43}, \texttt{mlp\_s44} \\
+GuppyLM KAN grid=2 & \texttt{kan\_grid2\_s42}, \texttt{kan\_grid2\_s43}, \texttt{kan\_grid2\_s44} \\
+GuppyLM KAT grid2+KAT & \texttt{kat\_s42}, \texttt{kat\_s43}, \texttt{kat\_s44} \\
+GuppyLM MLPEdge $h=5$ & \texttt{mlpedge\_s42}, \texttt{mlpedge\_s43}, \texttt{mlpedge\_s44} \\
+GuppyLM MLPEdge $h=8$ & \texttt{mlpedge\_h8\_s42}, \texttt{mlpedge\_h8\_s43}, \texttt{mlpedge\_h8\_s44} \\
+GuppyLM corrected GR-KAN & \texttt{grkan\_corrected\_s42}, \texttt{grkan\_corrected\_s43}, \texttt{grkan\_corrected\_s44} \\
+GuppyLM \grkan{} square denom. & \texttt{basis\_confirm/grkan\_square\_p5q4\_g8\_s42}, \texttt{basis\_confirm/grkan\_square\_p5q4\_g8\_s43}, \texttt{basis\_confirm/grkan\_square\_p5q4\_g8\_s44} \\
+GuppyLM \basiskan{} Cheb $d=3,g=8$ & \texttt{basis\_confirm/cheb\_d3\_g8\_s42}, \texttt{basis\_confirm/cheb\_d3\_g8\_s43}, \texttt{basis\_confirm/cheb\_d3\_g8\_s44} \\
+MLPEdge GPT-2 MLP & \texttt{checkpoints/scale/mlp/best.pt} \\
+MLPEdge GPT-2 $h=8$ & \texttt{checkpoints/scale/mlpedge\_h8/best.pt} \\
+GR-KAN d12 ($g=4$) & \nolinkurl{checkpoints/nanochat/b-g4-20260610T193454Z-full-d12-grkan-g4/d12-grkan-g4/model_002520.pt} plus \texttt{meta\_002520.json}, \texttt{tokenizer.pkl}, and \texttt{token\_bytes.pt} \\
+GR-KAN d12 ($g=8$) & \nolinkurl{checkpoints/nanochat/20260608T193716Z-d12-grkan-g8-corrected-r2/d12-grkan-g8-corrected-r2/model_002520.pt} plus matching metadata and tokenizer \\
+d12 MLP & \texttt{checkpoints/nanochat/d12-mlp/model\_002520.pt} plus matching tokenizer and eval artifacts \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Statistical Reporting}
+
+\begin{itemize}
+  \item GuppyLM validation loss: mean $\pm$ std over 3 seeds for each model row.
+  \item GuppyLM 16-prompt heuristic: pass/fail score; not a benchmark.
+    Binomial standard error ${\sim}\pm2.5$ prompts at $n=16$.
+    Differences of 1--2 correct responses are not statistically meaningful.
+  \item MLPEdge GPT-2 Wikitext-103: single-run comparison (no multi-seed replication yet).
+  \item GR-KAN ClimbMix d12: single corrected run per group count ($g=4$, $g=8$).
+    DCLM CORE per-task results are reported with the aggregate; per-task
+    advantage claims would require confidence intervals and predeclared analysis.
+\end{itemize}
+
+\subsection{Known Limitations Preserved in the Manuscript}
+
+\begin{enumerate}
+  \item No tested KAN-family GuppyLM model dominates MLP on both validation loss and latency; Chebyshev $d=3,g=8$ matches the MLP validation-loss mean but is slower.
+  \item Corrected GuppyLM GR-KAN is close to MLP but not a replacement claim; the square-denominator rational ablation is also close but not a quality/latency win.
+  \item Parameter-matched MLPEdge $h=8$ does not close the MLP gap at GuppyLM scale.
+  \item MLPEdge $h=8$ fails to scale cleanly to GPT-2-small on Wikitext-103 (26\% perplexity gap).
+  \item Corrected canonical GR-KAN trails MLP at 286M parameters on BPB, DCLM CORE, and throughput at every tested group count ($g=4$ best, $g=8$ worse, $g=16$ diverged).
+  \item Pre-fix GR-KAN checkpoints outside the corrected GuppyLM rerun remain excluded from the evidence base until corrected reruns replace them.
+  \item Domain-selective edge analysis is correlational; causal circuit claims are not supported.
+\end{enumerate}
+\end{document}

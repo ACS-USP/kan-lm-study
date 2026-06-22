@@ -1,0 +1,170 @@
+[
+  {
+    "out": 327,
+    "in": 147,
+    "label": "selective: generic>fish",
+    "diff": -0.0778,
+    "baseline_fish": 1.6206716671586037,
+    "baseline_generic": 2.4019065648317337,
+    "interventions": [
+      {
+        "alpha": 0.0,
+        "loss_fish": 1.6205709129571915,
+        "loss_generic": 2.40086729824543,
+        "delta_fish": -0.00010075420141220093,
+        "delta_generic": -0.001039266586303711,
+        "asymmetry": 0.00093851238489151
+      },
+      {
+        "alpha": 0.5,
+        "loss_fish": 1.6206218972802162,
+        "loss_generic": 2.401390790939331,
+        "delta_fish": -4.976987838745117e-05,
+        "delta_generic": -0.0005157738924026489,
+        "asymmetry": 0.00046600401401519775
+      },
+      {
+        "alpha": 2.0,
+        "loss_fish": 1.6207662299275398,
+        "loss_generic": 2.4029115587472916,
+        "delta_fish": 9.456276893615723e-05,
+        "delta_generic": 0.0010049939155578613,
+        "asymmetry": -0.0009104311466217041
+      },
+      {
+        "alpha": 5.0,
+        "loss_fish": 1.621006928384304,
+        "loss_generic": 2.405655160546303,
+        "delta_fish": 0.0003352612257003784,
+        "delta_generic": 0.003748595714569092,
+        "asymmetry": -0.0034133344888687134
+      }
+    ]
+  },
+  {
+    "out": 60,
+    "in": 147,
+    "label": "selective: fish>generic",
+    "diff": 0.0628,
+    "baseline_fish": 1.6206716671586037,
+    "baseline_generic": 2.4019065648317337,
+    "interventions": [
+      {
+        "alpha": 0.0,
+        "loss_fish": 1.6206833347678185,
+        "loss_generic": 2.401937022805214,
+        "delta_fish": 1.1667609214782715e-05,
+        "delta_generic": 3.045797348022461e-05,
+        "asymmetry": -1.8790364265441895e-05
+      },
+      {
+        "alpha": 0.5,
+        "loss_fish": 1.620677463710308,
+        "loss_generic": 2.401923716068268,
+        "delta_fish": 5.796551704406738e-06,
+        "delta_generic": 1.7151236534118652e-05,
+        "asymmetry": -1.1354684829711914e-05
+      },
+      {
+        "alpha": 2.0,
+        "loss_fish": 1.6206607073545456,
+        "loss_generic": 2.401860624551773,
+        "delta_fish": -1.0959804058074951e-05,
+        "delta_generic": -4.5940279960632324e-05,
+        "asymmetry": 3.498047590255737e-05
+      },
+      {
+        "alpha": 5.0,
+        "loss_fish": 1.6206280216574669,
+        "loss_generic": 2.4016404151916504,
+        "delta_fish": -4.3645501136779785e-05,
+        "delta_generic": -0.000266149640083313,
+        "asymmetry": 0.0002225041389465332
+      }
+    ]
+  },
+  {
+    "out": 119,
+    "in": 85,
+    "label": "selective: fish>generic",
+    "diff": 0.0603,
+    "baseline_fish": 1.6206716671586037,
+    "baseline_generic": 2.4019065648317337,
+    "interventions": [
+      {
+        "alpha": 0.0,
+        "loss_fish": 1.6205177381634712,
+        "loss_generic": 2.4020604342222214,
+        "delta_fish": -0.0001539289951324463,
+        "delta_generic": 0.0001538693904876709,
+        "asymmetry": -0.0003077983856201172
+      },
+      {
+        "alpha": 0.5,
+        "loss_fish": 1.620592974126339,
+        "loss_generic": 2.4019825905561447,
+        "delta_fish": -7.869303226470947e-05,
+        "delta_generic": 7.602572441101074e-05,
+        "asymmetry": -0.00015471875667572021
+      },
+      {
+        "alpha": 2.0,
+        "loss_fish": 1.620840735733509,
+        "loss_generic": 2.401760920882225,
+        "delta_fish": 0.0001690685749053955,
+        "delta_generic": -0.000145643949508667,
+        "asymmetry": 0.0003147125244140625
+      },
+      {
+        "alpha": 5.0,
+        "loss_fish": 1.62143936753273,
+        "loss_generic": 2.401372954249382,
+        "delta_fish": 0.0007677003741264343,
+        "delta_generic": -0.0005336105823516846,
+        "asymmetry": 0.001301310956478119
+      }
+    ]
+  },
+  {
+    "out": 200,
+    "in": 200,
+    "label": "control",
+    "diff": 0.0,
+    "baseline_fish": 1.6206716671586037,
+    "baseline_generic": 2.4019065648317337,
+    "interventions": [
+      {
+        "alpha": 0.0,
+        "loss_fish": 1.6206183955073357,
+        "loss_generic": 2.4018722623586655,
+        "delta_fish": -5.327165126800537e-05,
+        "delta_generic": -3.4302473068237305e-05,
+        "asymmetry": -1.8969178199768066e-05
+      },
+      {
+        "alpha": 0.5,
+        "loss_fish": 1.6206451952457428,
+        "loss_generic": 2.40188966691494,
+        "delta_fish": -2.647191286087036e-05,
+        "delta_generic": -1.6897916793823242e-05,
+        "asymmetry": -9.573996067047119e-06
+      },
+      {
+        "alpha": 2.0,
+        "loss_fish": 1.6207236051559448,
+        "loss_generic": 2.4019396603107452,
+        "delta_fish": 5.1937997341156006e-05,
+        "delta_generic": 3.3095479011535645e-05,
+        "asymmetry": 1.884251832962036e-05
+      },
+      {
+        "alpha": 5.0,
+        "loss_fish": 1.6208719238638878,
+        "loss_generic": 2.4020307809114456,
+        "delta_fish": 0.00020025670528411865,
+        "delta_generic": 0.00012421607971191406,
+        "asymmetry": 7.604062557220459e-05
+      }
+    ]
+  }
+]

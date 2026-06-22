@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+**/__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS
+.DS_Store
+**/.DS_Store
+
+# Checkpoints are archived externally (see checkpoints/README.md)
+checkpoints/**/*.pt
+checkpoints/SHA256SUMS
+
+# LaTeX build artifacts
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.synctex.gz
+paper/*.fls
+paper/*.fdb_latexmk
+
+# Scratch
+tmp/
+*.tmp
+
+# transient build outputs (canonical figures live in figures/)
+experiments/*.pdf
+experiments/*.png
