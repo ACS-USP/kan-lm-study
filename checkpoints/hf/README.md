@@ -24,7 +24,7 @@ the companion repository.
 
 - **Code + reproduction:** https://github.com/ACS-USP/kan-lm-study
 - **Paper:** see `paper/` in the code repo
-- **DOI:** _TBD — generated from this repository's settings (DataCite)._
+- **DOI:** [10.57967/hf/9264](https://doi.org/10.57967/hf/9264)
 
 > These are **not** `transformers`-loadable models. They are `kanprey` checkpoints
 > (custom KAN/MLP transformer). Load them with the vendored `kan-guppylm` code in
@@ -82,5 +82,14 @@ Nemotron-ClimbMix (CC BY-NC 4.0, research use).
   author = {Alves, Felippe},
   year   = {2026},
   note   = {Code: https://github.com/ACS-USP/kan-lm-study}
+}
+
+@misc{acsusp2026kanlmckpts,
+  author    = {Agentic Complex Systems - USP},
+  title     = {kan-lm-study-checkpoints},
+  year      = {2026},
+  publisher = {Hugging Face},
+  doi       = {10.57967/hf/9264},
+  url       = {https://huggingface.co/ACS-USP/kan-lm-study-checkpoints}
 }
 ```
