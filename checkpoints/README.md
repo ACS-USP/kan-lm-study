@@ -1,40 +1,51 @@
-# Checkpoints (archived externally)
+# Checkpoints (archived on the HuggingFace Hub)
 
-Model checkpoints are **not stored in git** — they are large binaries (git is the
-wrong tool). They live in an external archive and are referenced by `../manifest.json`.
+Model checkpoints are **not stored in git** — they are large binaries (~129 files,
+~20 GB). They are archived on the **HuggingFace Hub** as a model repo with a model
+card, and a **DOI** is minted from that repo (DataCite). The code repo references
+them via `../manifest.json`.
 
-## Where
+```
+checkpoints/
+├── README.md            (this file)
+├── INVENTORY.tsv        every best.pt with size + path
+├── SHA256SUMS           integrity checksums (committed; verify after download)
+├── gen_checksums.sh     regenerate SHA256SUMS from a local tree
+└── hf/
+    ├── README.md          the HF model card (uploaded as the repo README)
+    └── upload_to_hf.py     uploads checkpoints + card to the Hub
+```
 
-**Host: TBD.** Choose one at upload time and record the URL/DOI in `../manifest.json`
-(`checkpoints.host`) and in the paper's data-availability statement:
-
-- **Zenodo** — single citable DOI for the whole bundle (recommended for the paper's
-  permanent archive).
-- **HuggingFace Hub** — model-card UX + `hf_hub_download`; can mint a Zenodo DOI alongside.
-
-## What
-
-The bundle is **every run's final checkpoint** (`best.pt`): ~124 files, ~18 GB.
-It includes the **61-run BabyLM Strict-Small matrix** (the four critical
-architectures × 10 seeds plus supporting/low-priority rows × fewer seeds) and the
-GuppyLM, Wikitext-103 scale, and ClimbMix endpoints.
-
-- `INVENTORY.tsv` — every `best.pt` with its size and repo-relative path.
-- `SHA256SUMS` — integrity checksums (generated at upload time; see below).
-
-## Generating checksums
-
-Checksums are computed against your local checkpoint tree at upload time (they are
-not committed pre-upload because the bundle composition/host is finalized then):
+## How to publish (the part needing your HF account)
 
 ```bash
+pip install -U "huggingface_hub[cli]"
+hf auth login                                   # paste a write token
+
+CKPT_ROOT=/Users/felippealves/Documents/GitHub/kan-guppylm/checkpoints \
+HF_REPO=ACS-USP/kan-lm-study-checkpoints \
+python checkpoints/hf/upload_to_hf.py           # creates a PRIVATE repo, resumable
+```
+
+Then, when you're ready to publish:
+
+1. On the HF repo page → **Settings → Change visibility → Public**.
+2. **Settings → "Generate DOI"** (DataCite). Copy the DOI.
+3. Record the DOI + repo URL in `../manifest.json` (`checkpoints.host`) and in the
+   paper's data-availability statement.
+
+## Integrity
+
+Checksums were generated from the local checkpoint tree at packaging time:
+
+```bash
+# regenerate (e.g. if the bundle changes):
 CKPT_ROOT=/path/to/kan-guppylm/checkpoints bash gen_checksums.sh
-# writes ./SHA256SUMS  (then upload it alongside the checkpoints)
+# verify a downloaded copy:
+cd /local/download && shasum -a 256 -c /path/to/SHA256SUMS
 ```
 
 ## Using a downloaded checkpoint
-
-After downloading, point the experiment scripts at the local path, e.g.:
 
 ```bash
 python ../experiments/prune_mlp.py \
@@ -42,4 +53,6 @@ python ../experiments/prune_mlp.py \
     --tokenizer ../vendor/kan-guppylm/tokenizer.json
 ```
 
-The figure/table → checkpoint mapping is in `../manifest.json`.
+The figure/table → checkpoint mapping is in `../manifest.json`. Note these are
+`kanprey` checkpoints, not `transformers` models — load them with the vendored
+`vendor/kan-guppylm/kanprey` code (see `hf/README.md`).

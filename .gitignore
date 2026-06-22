@@ -9,9 +9,9 @@ venv/
 .DS_Store
 **/.DS_Store
 
-# Checkpoints are archived externally (see checkpoints/README.md)
+# Checkpoints are archived externally (see checkpoints/README.md).
+# SHA256SUMS and INVENTORY.tsv are kept in git as the integrity record.
 checkpoints/**/*.pt
-checkpoints/SHA256SUMS
 
 # LaTeX build artifacts
 paper/*.aux

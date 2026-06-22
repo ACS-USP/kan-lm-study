@@ -83,6 +83,11 @@
 133M	checkpoints/basis_pilots/wendland_c8_h15_g8_s42/best.pt
 133M	checkpoints/basis_pilots/wendland_c8_h15_g8_s42_corrupt_overlap_20260603_214555/best.pt
 113M	checkpoints/best.pt
+194M	checkpoints/gridsweep/kan_grid10_s42/best.pt
+194M	checkpoints/gridsweep/kan_grid10_s42_long/best.pt
+295M	checkpoints/gridsweep/kan_grid20_s42/best.pt
+295M	checkpoints/gridsweep/kan_grid20_s42_long/best.pt
+143M	checkpoints/gridsweep/kan_grid5_s42/best.pt
 133M	checkpoints/grkan_corrected_s42/best.pt
 133M	checkpoints/grkan_corrected_s43/best.pt
 133M	checkpoints/grkan_corrected_s44/best.pt

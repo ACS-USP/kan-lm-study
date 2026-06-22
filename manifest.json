@@ -67,9 +67,14 @@
     {"id": "tab:guppylm (screen)", "source_data": "GuppyLM training logs (3 seeds/row)"}
   ],
   "checkpoints": {
-    "host": "TBD (Zenodo DOI or HuggingFace Hub) - see checkpoints/README.md",
-    "scope": "all run final checkpoints (best.pt); ~124 files, ~18 GB; includes the 61-run BabyLM matrix plus GuppyLM, Wikitext-103 scale, and ClimbMix endpoints",
+    "host": "HuggingFace Hub",
+    "hf_repo": "ACS-USP/kan-lm-study-checkpoints",
+    "hf_url": "https://huggingface.co/ACS-USP/kan-lm-study-checkpoints",
+    "doi": "TBD - mint via the HF repo Settings -> Generate DOI (DataCite) after publishing",
+    "scope": "all run final checkpoints (best.pt); 129 files, ~20 GB; includes the 61-run BabyLM matrix plus the GuppyLM screen, grid-size sweep, and Wikitext-103 scale endpoints (286M ClimbMix checkpoints tracked separately)",
     "inventory": "checkpoints/INVENTORY.tsv",
-    "checksums": "checkpoints/SHA256SUMS (generate with checkpoints/gen_checksums.sh at upload time)"
+    "checksums": "checkpoints/SHA256SUMS",
+    "upload_tool": "checkpoints/hf/upload_to_hf.py",
+    "model_card": "checkpoints/hf/README.md"
   }
 }
